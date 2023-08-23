@@ -21,12 +21,12 @@ generateService({
 });
 ```
 
-在 `package.json` 的 `script` 中添加 api: `"openapi": "ts-node openapi.config.ts",`
+在 `package.json` 的 `script` 中添加 api: `"gen:api": "ts-node openapi.config.ts",`
 
 生成 api
 
 ```node
-npm run openapi
+npm run gen:api
 ```
 
 ## 参数

@@ -3,12 +3,12 @@
 // API 更新时间：{{ apiResourceModifyTime }}
 // API 唯一标识：{{ apiResourceId }}
 {% for api in list -%}
-import * as {{ api.controllerName }} from './{{ api.fileName }}'
+export * as {{ api.controllerName }} from './{{ api.fileName }}'
 {% endfor -%}
 
 
-export default {
+{# export default class API{
   {% for api in list -%}
-  {{ api.controllerName }},
+static {{ api.controllerName }};
   {% endfor -%}
-}
+} #}

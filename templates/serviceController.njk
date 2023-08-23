@@ -2,9 +2,11 @@
 /* eslint-disable */
 {{ requestImportStatement }}
 
+export class {{className}}Service {
+
 {% for api in list -%}
 /** {{ api.desc if api.desc else '此处后端没有提供注释' }} {{api.method | upper}} {{ api.pathInComment | safe }} */
-export async function {{ api.functionName }}(
+static async {{ api.functionName }}(
 {%- if api.params and api.hasParams %}
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params
@@ -103,12 +105,13 @@ export async function {{ api.functionName }}(
   });
   {% endif %}
   {% endif -%}
-
+  
   {% if api.hasPathVariables or api.hasApiPrefix -%}
-  return request{{ ("<" + api.response.type + ">") | safe if genType === "ts" }}(`{{ api.path | safe }}`, {
+  return request{{ ("<" + api.response.type + ">") | safe if genType === "ts" }}({
   {% else -%}
-  return request{{ ("<" + api.response.type + ">") | safe if genType === "ts" }}('{{ api.path }}', {
+  return request{{ ("<" + api.response.type + ">") | safe if genType === "ts" }}({
   {% endif -%}
+    url: '{{ api.path }}',
     method: '{{ api.method | upper }}',
     {%- if api.hasHeader and api.body.mediaType not in ["multipart/form-data", "application/x-www-form-urlencoded"]%}
     headers: {
@@ -149,3 +152,4 @@ export async function {{ api.functionName }}(
 }
 
 {% endfor -%}
+}

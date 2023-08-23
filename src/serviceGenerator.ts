@@ -322,8 +322,9 @@ class ServiceGenerator {
       Log(`🚥 serves 生成失败: ${error}`);
     }
 
+    const FILE_TYPE: TypescriptFileType = 'model';
     // 生成 ts 类型声明
-    this.genFileFromTemplate('typings.d.ts', 'model', {
+    this.genFileFromTemplate(FILE_TYPE === 'model' ? 'models.ts' : 'typings.d.ts', FILE_TYPE, {
       namespace: this.config.namespace,
       nullable: this.config.nullable,
       // namespace: 'API',
@@ -343,6 +344,7 @@ class ServiceGenerator {
           namespace: this.config.namespace,
           requestImportStatement: this.config.requestImportStatement,
           disableTypeCheck: false,
+          className: tp.className,
           ...tp,
         },
       );
@@ -837,6 +839,7 @@ class ServiceGenerator {
       nunjucks.configure({
         autoescape: false,
       });
+
       return writeFile(this.finalPath, fileName, nunjucks.renderString(template, params));
     } catch (error) {
       // eslint-disable-next-line no-console

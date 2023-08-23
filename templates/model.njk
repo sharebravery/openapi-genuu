@@ -24,9 +24,9 @@ declare namespace {{ namespace }} {
               {{ p.type | safe }}
             {%- else %}
               {%- if nullable %}
-                '{{ p.name }}': {{ p.type | safe }}{{'' if p.required else '| null'}};
+                {{ p.name }}: {{ p.type | safe }}{{'' if p.required else '| null'}};
               {%- else %}
-                '{{ p.name }}'{{ '' if p.required else '?' }}: {{ p.type | safe }};
+                {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }};
               {%- endif %}
             {%- endif %}
           {%- endfor %}

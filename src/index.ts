@@ -136,7 +136,7 @@ export const generateService = async ({
   const requestImportStatement = getImportStatement(requestLibPath);
   const serviceGenerator = new ServiceGenerator(
     {
-      namespace: 'API',
+      namespace: 'Models',
       requestImportStatement,
       enumStyle: 'string-literal',
       nullable,
