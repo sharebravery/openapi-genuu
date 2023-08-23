@@ -11,6 +11,15 @@
     "skipLibCheck": true,
     "declaration": true
   },
-  "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "lib", "es", "dist", "**/__tests__", "**/__test__", "**/demo"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "es",
+    "dist",
+    "**/__tests__",
+    "**/__test__",
+    "**/demo",
+    "test.ts"
+  ]
 }
