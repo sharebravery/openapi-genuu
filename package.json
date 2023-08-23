@@ -4,7 +4,7 @@
   "description": "",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sharebravery/openapi2typescript.git"
+    "url": "git+https://github.com/sharebravery/openapi2typescript.git"
   },
   "license": "MIT",
   "main": "dist/index.js",
