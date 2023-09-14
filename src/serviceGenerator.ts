@@ -62,7 +62,9 @@ const resolveTypeName = (typeName: string) => {
 
   // 当model名称是number开头的时候，ts会报错。这种场景一般发生在后端定义的名称是中文
   if (name === '_' || /^\d+$/.test(name)) {
-    Log('⚠️  models不能以number开头，原因可能是Model定义名称为中文, 建议联系后台修改');
+    Log(
+      `⚠️ name：[${name}], models不能以number开头，原因可能是Model定义名称为中文, 建议联系后台修改`,
+    );
     return `Pinyin_${name}`;
   }
   if (!/[\u3220-\uFA29]/.test(name) && !/^\d$/.test(name)) {
@@ -323,7 +325,14 @@ class ServiceGenerator {
     }
 
     const FILE_TYPE: TypescriptFileType = 'model';
-    // 生成 ts 类型声明
+
+    // console.log(
+    //   '%c [ this.getInterfaceTP() ]-333',
+    //   'font-size:13px; background:#77bf67; color:#bbffab;',
+    //   JSON.stringify(this.getInterfaceTP().filter((e) => e.props)),
+    // );
+
+    // 生成 ts 类型声明 'typings.d.ts'
     this.genFileFromTemplate(FILE_TYPE === 'model' ? 'models.ts' : 'typings.d.ts', FILE_TYPE, {
       namespace: this.config.namespace,
       nullable: this.config.nullable,
@@ -752,6 +761,19 @@ class ServiceGenerator {
 
         return Object.keys(defines).map((typeName) => {
           const result = this.resolveObject(defines[typeName]);
+
+          result?.props?.forEach((e) => {
+            e.forEach((item) => {
+              console.log(
+                '%c [ item ]-765',
+                'font-size:13px; background:#1eb6ac; color:#62faf0;',
+                JSON.stringify(item),
+              );
+
+              item?.type?.includes('[]') && (item['isArray'] = true);
+              item['isArray'] = false;
+            });
+          });
 
           const getDefinesType = () => {
             if (result.type) {

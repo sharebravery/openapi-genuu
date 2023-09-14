@@ -1,4 +1,4 @@
-declare namespace {{ namespace }} {
+export namespace {{ namespace }} {
   {% for type in list -%}
     {%- if type.props.length %}
       {%- if type.isEnum %}

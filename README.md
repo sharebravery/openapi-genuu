@@ -1,6 +1,10 @@
 ## 介绍
 
-根据 [OpenApi3](https://swagger.io/blog/news/whats-new-in-openapi-3-0/) 文档生成 request 请求代码。
+根据 [OpenApi3](https://swagger.io/blog/news/whats-new-in-openapi-3-0/) 文档生成对应模型以及 request 请求代码。
+
+- 类型即文档
+- 生成可以实例化的 class，而非 interface，一行代码实例化解决无属性烦恼（new className()）
+- 使用类和静态方法重新组织代码结构
 
 ## 使用
 
@@ -15,7 +19,7 @@ const { generateService } = require('@sharebravery/openapi');
 
 generateService({
   schemaPath: 'http://petstore.swagger.io/v2/swagger.json',
-  serversPath: './servers',
+  serversPath: './.generated',
 });
 ```
 
@@ -37,8 +41,10 @@ npm run gen:api
 | serversPath | 否 | 生成的文件夹的路径 | string | - |
 | schemaPath | 否 | Swagger 2.0 或 OpenAPI 3.0 的地址 | string | - |
 | projectName | 否 | 项目名称 | string | - |
-| namespace | 否 | 命名空间名称 | string | API |
+| namespace | 否 | 命名空间名称 | string | Models |
 | mockFolder | 否 | mock 目录 | string | - |
 | enumStyle | 否 | 枚举样式 | string-literal \| enum | string-literal |
 | nullable | 否 | 使用 null 代替可选 | boolean | false |
 | dataFields | 否 | response 中数据字段 | string[] | - |
+
+> fork by https://github.com/chenshuai2144/openapi2typescript
