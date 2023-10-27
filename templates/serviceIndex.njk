@@ -3,7 +3,7 @@
 // API 更新时间：{{ apiResourceModifyTime }}
 // API 唯一标识：{{ apiResourceId }}
 {% for api in list -%}
-export * as {{ api.controllerName }} from './{{ api.fileName }}'
+export * from './{{ api.fileName }}'
 {% endfor -%}
 
 
