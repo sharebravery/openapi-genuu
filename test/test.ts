@@ -5,10 +5,25 @@ const fs = require('fs');
 const openAPI = require('../dist/index');
 
 const gen = async () => {
+  // await openAPI.generateService({
+  //   schemaPath: `http://192.168.1.6:8889/user/v2/api-docs`,
+  //   serversPath: './.generated-exchange',
+  // });
+  // await openAPI.generateService({
+  //   schemaPath: `http://localhost:8889/user/v2/api-docs`,
+  //   serversPath: './.generated',
+  // });
+
   await openAPI.generateService({
-    schemaPath: `http://localhost:8889/user/v2/api-docs`,
-    serversPath: './.generated',
+    schemaPath: `http://127.0.0.1:4523/export/openapi?projectId=3481564&version=3.1`,
+    serversPath: './.generated-follow',
+    // enumStyle: 'enum'
   });
+
+  // await openAPI.generateService({
+  //   schemaPath: `${__dirname}/example-files/exchange-core.openapi.json`,
+  //   serversPath: './.generated-exchange',
+  // });
 
   // await openAPI.generateService({
   //   schemaPath: `${__dirname}/example-files/swagger-get-method-params-convert-obj.json`,

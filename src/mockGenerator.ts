@@ -1,7 +1,7 @@
 import Mock from 'mockjs';
 import fs from 'fs';
-import {prettierFile, writeFile} from './util';
-import {dirname, join} from 'path';
+import { prettierFile, writeFile } from './util';
+import { dirname, join } from 'path';
 import OpenAPIParserMock from './openAPIParserMock/index';
 import Log from './log';
 import pinyin from "tiny-pinyin";
@@ -123,7 +123,7 @@ const genMockData = (example: string) => {
     }, {});
 };
 
-const genByTemp = ( {
+const genByTemp = ({
   method,
   path,
   parameters,
@@ -132,7 +132,7 @@ const genByTemp = ( {
 }: {
   method: string;
   path: string;
-  parameters: { name: string, in: string, description: string, required: boolean, schema: {type: string}, example: string}[];
+  parameters: { name: string, in: string, description: string, required: boolean, schema: { type: string }, example: string }[];
   status: string;
   data: string;
 }) => {
@@ -142,7 +142,7 @@ const genByTemp = ( {
 
   let securityPath = path
   parameters?.forEach(item => {
-    if (item.in === "path"){
+    if (item.in === "path") {
       securityPath = securityPath.replace(`{${item.name}}`, `:${item.name}`)
     }
   })

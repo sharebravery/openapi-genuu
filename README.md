@@ -5,6 +5,7 @@
 - 类型即文档
 - 生成可以实例化的 class，而非 interface，一行代码实例化解决无属性烦恼（new className()）
 - 使用类和静态方法重新组织代码结构
+- 对 API FOX 进行了适配 （java 等可以不写 swagger 注解 直接写注释 使用 api fox 生成文档和 json 文件）
 
 ## 使用
 
@@ -43,7 +44,7 @@ npm run gen:api
 | projectName | 否 | 项目名称 | string | - |
 | namespace | 否 | 命名空间名称 | string | Models |
 | mockFolder | 否 | mock 目录 | string | - |
-| enumStyle | 否 | 枚举样式 | string-literal \| enum | string-literal |
+| enumStyle | 否 | 枚举样式 | string-literal \| enum | enum |
 | nullable | 否 | 使用 null 代替可选 | boolean | false |
 | dataFields | 否 | response 中数据字段 | string[] | - |
 

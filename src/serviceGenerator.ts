@@ -121,21 +121,35 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
     type = 'enum';
   }
 
-  if (numberEnum.includes(type)) {
-    return 'number';
+  function checkBaseType(type) {
+    if (numberEnum.includes(type)) {
+      return 'number';
+    }
+
+    if (dateEnum.includes(type)) {
+      return 'Date';
+    }
+
+    if (stringEnum.includes(type)) {
+      return 'string';
+    }
+
+    if (type === 'boolean') {
+      return 'boolean';
+    }
+
+    return 'any';
   }
 
-  if (dateEnum.includes(type)) {
-    return 'Date';
+  if (Array.isArray(type)) {
+    const [trulyType, required] = type;
+
+    return checkBaseType(trulyType);
   }
 
-  if (stringEnum.includes(type)) {
-    return 'string';
-  }
+  const invalidType = checkBaseType(type);
 
-  if (type === 'boolean') {
-    return 'boolean';
-  }
+  if (invalidType !== 'any') return invalidType;
 
   if (type === 'array') {
     let { items } = schemaObject;
@@ -156,12 +170,12 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
   if (type === 'enum') {
     return Array.isArray(schemaObject.enum)
       ? Array.from(
-          new Set(
-            schemaObject.enum.map((v) =>
-              typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v),
-            ),
+        new Set(
+          schemaObject.enum.map((v) =>
+            typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v),
           ),
-        ).join(' | ')
+        ),
+      ).join(' | ')
       : 'string';
   }
 
@@ -289,8 +303,8 @@ class ServiceGenerator {
         const tags = operationObject['x-swagger-router-controller']
           ? [operationObject['x-swagger-router-controller']]
           : operationObject.tags || [operationObject.operationId] || [
-              p.replace('/', '').split('/')[1],
-            ];
+            p.replace('/', '').split('/')[1],
+          ];
 
         tags.forEach((tagString) => {
           const tag = resolveTypeName(tagString);
@@ -325,12 +339,6 @@ class ServiceGenerator {
     }
 
     const FILE_TYPE: TypescriptFileType = 'model';
-
-    // console.log(
-    //   '%c [ this.getInterfaceTP() ]-333',
-    //   'font-size:13px; background:#77bf67; color:#bbffab;',
-    //   JSON.stringify(this.getInterfaceTP().filter((e) => e.props)),
-    // );
 
     // 生成 ts 类型声明 'typings.d.ts'
     this.genFileFromTemplate(FILE_TYPE === 'model' ? 'models.ts' : 'typings.d.ts', FILE_TYPE, {
@@ -384,8 +392,8 @@ class ServiceGenerator {
     return this.config.hook && this.config.hook.customFunctionName
       ? this.config.hook.customFunctionName(data)
       : data.operationId
-      ? this.resolveFunctionName(stripDot(data.operationId), data.method)
-      : data.method + this.genDefaultFunctionName(data.path, pathBasePrefix);
+        ? this.resolveFunctionName(stripDot(data.operationId), data.method)
+        : data.method + this.genDefaultFunctionName(data.path, pathBasePrefix);
   }
 
   public getTypeName(data: APIDataType) {
@@ -468,11 +476,33 @@ class ServiceGenerator {
                   : params;
 
               // 处理 query 中的复杂对象
+              // const arrayParams = {};
               if (finalParams && finalParams.query) {
-                finalParams.query = finalParams.query.map((ele) => ({
-                  ...ele,
-                  isComplexType: ele.isObject,
-                }));
+                finalParams.query = finalParams.query.map((ele) => {
+                  // if (ele.name.includes('[0].')) {
+                  //   const [name, field] = ele.name.split('[0].');
+
+                  //   if (!arrayParams[name]) {
+                  //     arrayParams[name] = {
+                  //       name: name,
+                  //       in: 'query',
+                  //       description: '',
+                  //       required: false,
+                  //       schema: {
+                  //         "$ref": `#/components/schemas/${field.replace('s', '')}`,
+                  //         type: 'array'
+                  //       },
+                  //       isObject: true,
+                  //       type: 'array'
+                  //     }
+                  //   }
+                  // }
+
+                  return {
+                    ...ele,
+                    isComplexType: ele.isObject,
+                  };
+                });
               }
 
               const getPrefixPath = () => {
@@ -483,11 +513,11 @@ class ServiceGenerator {
                 const prefix =
                   typeof this.config.apiPrefix === 'function'
                     ? `${this.config.apiPrefix({
-                        path: formattedPath,
-                        method: newApi.method,
-                        namespace: tag,
-                        functionName,
-                      })}`.trim()
+                      path: formattedPath,
+                      method: newApi.method,
+                      namespace: tag,
+                      functionName,
+                    })}`.trim()
                     : this.config.apiPrefix.trim();
 
                 if (!prefix) {
@@ -752,6 +782,7 @@ class ServiceGenerator {
 
   public getInterfaceTP() {
     const { components } = this.openAPIData;
+
     const data =
       components &&
       [components.schemas].map((defines) => {
@@ -764,12 +795,6 @@ class ServiceGenerator {
 
           result?.props?.forEach((e) => {
             e.forEach((item) => {
-              console.log(
-                '%c [ item ]-765',
-                'font-size:13px; background:#1eb6ac; color:#62faf0;',
-                JSON.stringify(item),
-              );
-
               item?.type?.includes('[]') && (item['isArray'] = true);
               item['isArray'] = false;
             });
@@ -786,7 +811,7 @@ class ServiceGenerator {
             type: getDefinesType(),
             parent: result.parent,
             props: result.props || [],
-            isEnum: result.isEnum,
+            isEnum: result?.isEnum,
           };
         });
       });
@@ -804,14 +829,55 @@ class ServiceGenerator {
         );
         const props = [];
         if (operationObject.parameters) {
+          const comxArrayParams = {};
           operationObject.parameters.forEach((parameter: any) => {
-            props.push({
-              desc: parameter.description ?? '',
-              name: parameter.name,
-              required: parameter.required,
-              type: getType(parameter.schema),
-            });
+            // TODO: 这些是特殊处理 可能不通用
+            if (parameter.name.includes('[0].')) {
+              const [name, field] = parameter.name.split('[0].');
+
+              if (!comxArrayParams[name]) {
+                function convertToCamelCase(input: string): string {
+                  // 使用正则表达式将单词分开
+                  const words = input.split(/(?=[A-Z])/);
+
+                  // 将所有单词的首字母大写
+                  const camelCaseWords = words.map(
+                    (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+                  );
+
+                  // 如果最后一个单词是 'List'，则去掉它
+                  if (camelCaseWords[camelCaseWords.length - 1] === 'List') {
+                    camelCaseWords.pop();
+                  }
+
+                  // 将单词重新组合成字符串
+                  const camelCaseString = camelCaseWords.join('');
+
+                  return camelCaseString;
+                }
+
+                const camelCaseResult = convertToCamelCase(name);
+
+                comxArrayParams[name] = {
+                  desc: '',
+                  name: name,
+                  required: false,
+                  type: `Array<${camelCaseResult}> = []`,
+                };
+              }
+            } else {
+              props.push({
+                desc: parameter.description ?? '',
+                name: parameter.name,
+                required: parameter.required,
+                type: getType(parameter.schema),
+              });
+            }
           });
+
+          for (const key in comxArrayParams) {
+            props.push(comxArrayParams[key]);
+          }
         }
         // parameters may be in path
         if (pathItem.parameters) {
@@ -879,17 +945,18 @@ class ServiceGenerator {
     const requiredPropKeys = schemaObject?.required ?? false;
     return schemaObject.properties
       ? Object.keys(schemaObject.properties).map((propName) => {
-          const schema: SchemaObject =
-            (schemaObject.properties && schemaObject.properties[propName]) || DEFAULT_SCHEMA;
-          return {
-            ...schema,
-            name: propName,
-            type: getType(schema),
-            desc: [schema.title, schema.description].filter((s) => s).join(' '),
-            // 如果没有 required 信息，默认全部是非必填
-            required: requiredPropKeys ? requiredPropKeys.some((key) => key === propName) : false,
-          };
-        })
+        const schema: SchemaObject =
+          (schemaObject.properties && schemaObject.properties[propName]) || DEFAULT_SCHEMA;
+
+        return {
+          ...schema,
+          name: propName,
+          type: getType(schema),
+          desc: [schema.title, schema.description].filter((s) => s).join(' '),
+          // 如果没有 required 信息，默认全部是非必填
+          required: requiredPropKeys ? requiredPropKeys.some((key) => key === propName) : false,
+        };
+      })
       : [];
   }
 
@@ -935,6 +1002,25 @@ class ServiceGenerator {
   }
 
   resolveEnumObject(schemaObject: SchemaObject) {
+    if (schemaObject['x-apifox']) {
+      const obj1: Record<string, string> = schemaObject['x-apifox'].enumDescriptions;
+
+      const obj2: Record<string, number> = {};
+
+      for (const key in obj1) {
+        if (obj1.hasOwnProperty(key)) {
+          obj2[obj1[key]] = parseInt(key, 10);
+        }
+      }
+
+      const modifiedString = JSON.stringify(obj2).replace(/:/g, '=');
+
+      return {
+        isEnum: true,
+        type: modifiedString,
+      };
+    }
+
     const enumArray = schemaObject.enum;
 
     let enumStr;

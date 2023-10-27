@@ -2,7 +2,7 @@ export namespace {{ namespace }} {
   {% for type in list -%}
     {%- if type.props.length %}
       {%- if type.isEnum %}
-        enum {{ type.typeName | safe }} 
+      enum {{ type.typeName | safe }} 
       {%- else %}
       export class {{ type.typeName | safe }} 
       {%- endif %}
@@ -45,7 +45,7 @@ export namespace {{ namespace }} {
       {%- endfor %}
     {%- else %}
       {%- if type.isEnum  %}
-        enum {{ type.typeName | safe }} {{ type.type }};
+       export enum {{ type.typeName | safe }} {{ type.type }};
       {%- else %}
      type {{ type.typeName | safe }} = {{ type.type }};
       {%- endif %}

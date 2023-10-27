@@ -26,14 +26,14 @@ export type GenerateServiceProps = {
    * api 的前缀
    */
   apiPrefix?:
-    | string
-    | ((params: {
-        path: string;
-        method: string;
-        namespace: string;
-        functionName: string;
-        autoExclude?: boolean;
-      }) => string);
+  | string
+  | ((params: {
+    path: string;
+    method: string;
+    namespace: string;
+    functionName: string;
+    autoExclude?: boolean;
+  }) => string);
   /**
    * 生成的文件夹的路径
    */
@@ -138,7 +138,7 @@ export const generateService = async ({
     {
       namespace: 'Models',
       requestImportStatement,
-      enumStyle: 'string-literal',
+      enumStyle: 'enum',
       nullable,
       ...rest,
     },
