@@ -10,13 +10,13 @@
 ## 使用
 
 ```node
-npm i --save-dev @sharebravery/openapi
+npm i --save-dev openapi-genuu
 ```
 
 在项目根目录新建 `openapi.config.ts`
 
 ```ts
-const { generateService } = require('@sharebravery/openapi');
+const { generateService } = require('openapi-genuu');
 
 generateService({
   schemaPath: 'http://petstore.swagger.io/v2/swagger.json',
