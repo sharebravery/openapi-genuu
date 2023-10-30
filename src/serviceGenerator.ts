@@ -19,7 +19,7 @@ import rimraf from 'rimraf';
 import pinyin from 'tiny-pinyin';
 import type { GenerateServiceProps } from './index';
 import Log from './log';
-import { stripDot, writeFile } from './util';
+import { getInitialValue, stripDot, writeFile } from './util';
 
 const BASE_DIRS = ['service', 'services'];
 
@@ -340,12 +340,13 @@ class ServiceGenerator {
 
     const FILE_TYPE: TypescriptFileType = 'model';
 
+
     // 生成 ts 类型声明 'typings.d.ts'
     this.genFileFromTemplate(FILE_TYPE === 'model' ? 'models.ts' : 'typings.d.ts', FILE_TYPE, {
       namespace: this.config.namespace,
       nullable: this.config.nullable,
       // namespace: 'API',
-      list: this.getInterfaceTP(),
+      list: this.getModelTP(),
       disableTypeCheck: false,
     });
     // 生成 controller 文件
@@ -780,7 +781,7 @@ class ServiceGenerator {
     return templateParams;
   }
 
-  public getInterfaceTP() {
+  public getModelTP() {
     const { components } = this.openAPIData;
 
     const data =
@@ -806,6 +807,9 @@ class ServiceGenerator {
             }
             return 'Record<string, any>';
           };
+
+
+
           return {
             typeName: resolveTypeName(typeName),
             type: getDefinesType(),
@@ -862,15 +866,19 @@ class ServiceGenerator {
                   desc: '',
                   name: name,
                   required: false,
-                  type: `Array<${camelCaseResult}> = []`,
+                  type: `Array<${camelCaseResult}>`,
+                  initialValue: '[]'
                 };
               }
             } else {
+              const pType = getType(parameter.schema)
+
               props.push({
                 desc: parameter.description ?? '',
                 name: parameter.name,
                 required: parameter.required,
-                type: getType(parameter.schema),
+                type: pType,
+                initialValue: getInitialValue(pType, parameter.required),
               });
             }
           });
@@ -948,13 +956,20 @@ class ServiceGenerator {
         const schema: SchemaObject =
           (schemaObject.properties && schemaObject.properties[propName]) || DEFAULT_SCHEMA;
 
+        const isEnum = 'enum' in schema
+
+        const sType = getType(schema)
+
+        const required = requiredPropKeys ? requiredPropKeys.some((key) => key === propName) : false
         return {
           ...schema,
           name: propName,
-          type: getType(schema),
+          type: sType,
           desc: [schema.title, schema.description].filter((s) => s).join(' '),
           // 如果没有 required 信息，默认全部是非必填
-          required: requiredPropKeys ? requiredPropKeys.some((key) => key === propName) : false,
+          required: required,
+
+          initialValue: isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required)
         };
       })
       : [];

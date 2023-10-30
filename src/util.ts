@@ -209,3 +209,22 @@ function combineParams(
 export const stripDot = (str: string) => {
   return str.replace(/[-_ .](\w)/g, (_all, letter) => letter.toUpperCase());
 };
+
+
+export function getInitialValue(type: string, required: boolean): string {
+  if (type === 'number') {
+    return '0';
+  } else if (type === 'string') {
+    return required ? "''" : 'undefined';
+  } else if (type === 'boolean') {
+    return 'false';
+  } else if (type === 'array') {
+    return '[]';
+  } else if (type === 'date') {
+    return 'new Date()';
+  } else if (type === 'object') {
+    return '{}';
+  } else {
+    return 'undefined';
+  }
+}

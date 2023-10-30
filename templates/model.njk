@@ -26,7 +26,7 @@ export namespace {{ namespace }} {
               {%- if nullable %}
                 {{ p.name }}: {{ p.type | safe }}{{'' if p.required else '| null'}};
               {%- else %}
-                {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }};
+                {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }} = {{ p.initialValue }};
               {%- endif %}
             {%- endif %}
           {%- endfor %}

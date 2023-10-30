@@ -141,7 +141,7 @@ static async {{ api.functionName }}(
     {%- if api.hasFormData %}
     data: formData,
     {%- if api.body.mediaType === "multipart/form-data" %}
-    requestType: 'form',
+    headers: { 'Content-Type': 'multipart/form-data' },
     {%- endif %}
     {%- else %}
     {%- if api.body %}

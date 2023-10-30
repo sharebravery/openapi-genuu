@@ -15,7 +15,7 @@ const gen = async () => {
   // });
 
   await openAPI.generateService({
-    schemaPath: `http://127.0.0.1:4523/export/openapi?projectId=3481564&version=3.1`,
+    schemaPath: `http://127.0.0.1:4523/export/openapi?projectId=3481564&version=3.0`,
     serversPath: './.generated-follow',
     // enumStyle: 'enum'
   });
