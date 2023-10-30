@@ -10,17 +10,17 @@
 ## 使用
 
 ```node
-npm i --save-dev openapi-genuu
+yarn add  openapi-genuu -D
 ```
 
 在项目根目录新建 `openapi.config.ts`
 
 ```ts
-const { generateService } = require('openapi-genuu');
+import { generateService } from 'openapi-genuu';
 
 generateService({
   schemaPath: 'http://petstore.swagger.io/v2/swagger.json',
-  serversPath: './.generated',
+  serversPath: './src/.generated',
 });
 ```
 
@@ -31,6 +31,9 @@ generateService({
 ```node
 npm run gen:api
 ```
+  
+# 注意 如`"type": "module"`
+则: `"gen:api": "ts-node --esm openapi.config.ts"`
 
 ## 参数
 
