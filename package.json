@@ -1,10 +1,10 @@
 {
-  "name": "@sharebravery/openapi",
-  "version": "1.4.0",
+  "name": "openapi-genuu",
+  "version": "0.0.1",
   "description": "",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sharebravery/openapi2typescript.git"
+    "url": "git+https://github.com/sharebravery/openapi-genuu"
   },
   "license": "MIT",
   "main": "dist/index.js",
