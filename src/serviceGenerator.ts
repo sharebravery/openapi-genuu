@@ -388,13 +388,14 @@ class ServiceGenerator {
   };
 
   public getFuncationName(data: APIDataType) {
+
     // 获取路径相同部分
     const pathBasePrefix = this.getBasePrefix(Object.keys(this.openAPIData.paths));
     return this.config.hook && this.config.hook.customFunctionName
       ? this.config.hook.customFunctionName(data)
       : data.operationId
         ? this.resolveFunctionName(stripDot(data.operationId), data.method)
-        : data.method + this.genDefaultFunctionName(data.path, pathBasePrefix);
+        : this.genDefaultFunctionName(data.path, pathBasePrefix) + `_${data.method.toUpperCase()}`;
   }
 
   public getTypeName(data: APIDataType) {
@@ -1085,6 +1086,12 @@ class ServiceGenerator {
     function toUpperFirstLetter(text: string) {
       return text.charAt(0).toUpperCase() + text.slice(1);
     }
+
+    const pathItems = path.split('/')
+
+    const funName = toUpperFirstLetter(pathItems[pathItems.length - 1])
+
+    return funName;
 
     return path
       ?.replace(pathBasePrefix, '')
