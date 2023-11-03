@@ -699,6 +699,9 @@ class ServiceGenerator {
     let schema = (resContent[mediaType].schema || DEFAULT_SCHEMA) as SchemaObject;
 
     if (schema.$ref) {
+      const refWithEncodedChars = schema.$ref.replace('%C2%AB', '<').replace('%C2%BB', '>');
+      schema.$ref = refWithEncodedChars
+
       const refPaths = schema.$ref.split('/');
       const refName = refPaths[refPaths.length - 1];
       const childrenSchema = components.schemas[refName] as SchemaObject;
@@ -969,7 +972,8 @@ class ServiceGenerator {
           // 如果没有 required 信息，默认全部是非必填
           required: required,
 
-          initialValue: isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required)
+          // initialValue: isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required)
+          initialValue: isEnum ? 'undefined' : getInitialValue(sType, required)
         };
       })
       : [];
