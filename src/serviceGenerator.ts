@@ -56,9 +56,14 @@ const resolveTypeName = (typeName: string) => {
   }
   const typeLastName = typeName.split('/').pop().split('.').pop();
 
+  // const name = typeLastName
+  //   .replace(/[-_ ](\w)/g, (_all, letter) => letter.toUpperCase())
+  //   .replace(/[^\w^\s^\u4e00-\u9fa5]/gi, '');
+
   const name = typeLastName
     .replace(/[-_ ](\w)/g, (_all, letter) => letter.toUpperCase())
-    .replace(/[^\w^\s^\u4e00-\u9fa5]/gi, '');
+    .replace(/%C2%AB/g, `<${'Models.'}`)
+    .replace(/%C2%BB/g, '>');
 
   // 当model名称是number开头的时候，ts会报错。这种场景一般发生在后端定义的名称是中文
   if (name === '_' || /^\d+$/.test(name)) {
@@ -78,6 +83,7 @@ function getRefName(refObject: any): string {
   if (typeof refObject !== 'object' || !refObject.$ref) {
     return refObject;
   }
+
   const refPaths = refObject.$ref.split('/');
   return resolveTypeName(refPaths[refPaths.length - 1]) as string;
 }
@@ -340,13 +346,16 @@ class ServiceGenerator {
 
     const FILE_TYPE: TypescriptFileType = 'model';
 
+    const uniqueModelTP = this.getModelTP().filter((obj, index, self) => {
+      return self.findIndex(o => o.typeName === obj.typeName) === index;
+    });
 
     // 生成 ts 类型声明 'typings.d.ts'
     this.genFileFromTemplate(FILE_TYPE === 'model' ? 'models.ts' : 'typings.d.ts', FILE_TYPE, {
       namespace: this.config.namespace,
       nullable: this.config.nullable,
       // namespace: 'API',
-      list: this.getModelTP(),
+      list: uniqueModelTP,
       disableTypeCheck: false,
     });
     // 生成 controller 文件
@@ -388,7 +397,6 @@ class ServiceGenerator {
   };
 
   public getFuncationName(data: APIDataType) {
-
     // 获取路径相同部分
     const pathBasePrefix = this.getBasePrefix(Object.keys(this.openAPIData.paths));
     return this.config.hook && this.config.hook.customFunctionName
@@ -700,8 +708,8 @@ class ServiceGenerator {
     let schema = (resContent[mediaType].schema || DEFAULT_SCHEMA) as SchemaObject;
 
     if (schema.$ref) {
-      const refWithEncodedChars = schema.$ref.replace('%C2%AB', '<').replace('%C2%BB', '>');
-      schema.$ref = refWithEncodedChars
+      // const refWithEncodedChars = schema.$ref.replace('%C2%AB', '<').replace('%C2%BB', '>');
+      // schema.$ref = refWithEncodedChars
 
       const refPaths = schema.$ref.split('/');
       const refName = refPaths[refPaths.length - 1];
@@ -726,6 +734,7 @@ class ServiceGenerator {
         schema.properties[fieldName]['required'] = schema.required?.includes(fieldName) ?? false;
       });
     }
+
     return {
       mediaType,
       type: getType(schema, this.config.namespace),
@@ -812,10 +821,37 @@ class ServiceGenerator {
             return 'Record<string, any>';
           };
 
+          /** 
+           * 修改泛型命名 <T>
+           * @type {*}
+           *  */
+          const inputString = resolveTypeName(typeName);
+          const regex = /«(.+?)»/g;
+          const matches = inputString.match(regex);
 
+          const contentTArray = [];
+
+          if (matches) {
+            for (const match of matches) {
+              const content = match.match(/«(.+?)»/)[1];
+              contentTArray.push(content);
+            }
+          }
+
+          const props = result.props || [];
+
+          props.forEach((prop) => {
+            prop.forEach((item) => {
+              contentTArray.forEach((content) => {
+                if ((item?.type as string).includes(content)) {
+                  item.type = (item?.type as string).replace(content, 'T');
+                }
+              });
+            });
+          });
 
           return {
-            typeName: resolveTypeName(typeName),
+            typeName: resolveTypeName(typeName).replace(/«.+»/g, '<T>'),
             type: getDefinesType(),
             parent: result.parent,
             props: result.props || [],
@@ -840,8 +876,8 @@ class ServiceGenerator {
           const comxArrayParams = {};
           operationObject.parameters.forEach((parameter: any) => {
             // TODO: 这些是特殊处理 可能不通用
-            if (parameter.name.includes('[0].')) {
-              const [name, field] = parameter.name.split('[0].');
+            if (parameter.name.includes('[0]')) {
+              const [name, field] = parameter.name.split('[0]');
 
               if (!comxArrayParams[name]) {
                 function convertToCamelCase(input: string): string {
@@ -871,11 +907,11 @@ class ServiceGenerator {
                   name: name,
                   required: false,
                   type: `Array<${camelCaseResult}>`,
-                  initialValue: '[]'
+                  initialValue: '[]',
                 };
               }
             } else {
-              const pType = getType(parameter.schema)
+              const pType = getType(parameter.schema);
 
               props.push({
                 desc: parameter.description ?? '',
@@ -960,11 +996,13 @@ class ServiceGenerator {
         const schema: SchemaObject =
           (schemaObject.properties && schemaObject.properties[propName]) || DEFAULT_SCHEMA;
 
-        const isEnum = 'enum' in schema
+        const isEnum = 'enum' in schema;
 
-        const sType = getType(schema)
+        const sType = getType(schema);
 
-        const required = requiredPropKeys ? requiredPropKeys.some((key) => key === propName) : false
+        const required = requiredPropKeys
+          ? requiredPropKeys.some((key) => key === propName)
+          : false;
         return {
           ...schema,
           name: propName,
@@ -972,9 +1010,8 @@ class ServiceGenerator {
           desc: [schema.title, schema.description].filter((s) => s).join(' '),
           // 如果没有 required 信息，默认全部是非必填
           required: required,
-
-          // initialValue: isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required)
-          initialValue: isEnum ? 'undefined' : getInitialValue(sType, required)
+          initialValue: !required && isEnum ? 'undefined' : (isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required))
+          // initialValue: isEnum ? 'undefined' : getInitialValue(sType, required),
         };
       })
       : [];
@@ -1022,22 +1059,17 @@ class ServiceGenerator {
   }
 
   resolveEnumObject(schemaObject: SchemaObject) {
-    if (schemaObject['x-apifox']) {
-      const obj1: Record<string, string> = schemaObject['x-apifox'].enumDescriptions;
 
-      const obj2: Record<string, number> = {};
+    if (schemaObject?.enum) {
+      const enumObject = schemaObject.enum.reduce((pre, cur) => {
+        pre[cur] ? pre : pre[cur] = cur;
+        return pre;
+      }, {});
 
-      for (const key in obj1) {
-        if (obj1.hasOwnProperty(key)) {
-          obj2[obj1[key]] = parseInt(key, 10);
-        }
-      }
-
-      const modifiedString = JSON.stringify(obj2).replace(/:/g, '=');
 
       return {
         isEnum: true,
-        type: modifiedString,
+        type: JSON.stringify(enumObject).replace(/:/g, '='),
       };
     }
 
@@ -1087,11 +1119,11 @@ class ServiceGenerator {
       return text.charAt(0).toUpperCase() + text.slice(1);
     }
 
-    const pathItems = path.split('/')
+    // const pathItems = path.split('/')
 
-    const funName = toUpperFirstLetter(pathItems[pathItems.length - 1])
+    // const funName = toUpperFirstLetter(pathItems[pathItems.length - 1])
 
-    return funName;
+    // return funName;
 
     return path
       ?.replace(pathBasePrefix, '')
