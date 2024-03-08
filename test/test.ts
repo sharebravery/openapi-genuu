@@ -15,10 +15,21 @@ const gen = async () => {
   // });
 
   await openAPI.generateService({
-    schemaPath: `http://127.0.0.1:4523/export/openapi?projectId=3481564&version=3.0`,
-    serversPath: './.generated-follow',
-    // enumStyle: 'enum'
+    schemaPath: `${__dirname}/test-allof-api.json`,
+    serversPath: './servers-allof',
   });
+
+  await openAPI.generateService({
+    schemaPath: `${__dirname}/example-files/swagger-get-method-params-convert-obj.json`,
+    serversPath: './servers',
+  });
+
+
+  // await openAPI.generateService({
+  //   schemaPath: `http://127.0.0.1:4523/export/openapi?projectId=3481564&version=3.0`,
+  //   serversPath: './.generated-follow',
+  //   // enumStyle: 'enum'
+  // });
 
   // await openAPI.generateService({
   //   schemaPath: `${__dirname}/example-files/exchange-core.openapi.json`,

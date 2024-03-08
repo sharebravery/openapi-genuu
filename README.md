@@ -19,6 +19,7 @@ yarn add  openapi-genuu -D
 import { generateService } from 'openapi-genuu';
 
 generateService({
+  requestLibPath: "import request from '../../utils/request';",
   schemaPath: 'http://petstore.swagger.io/v2/swagger.json',
   serversPath: './src/.generated',
 });
@@ -31,8 +32,9 @@ generateService({
 ```node
 npm run gen:api
 ```
-  
+
 # 注意 如`"type": "module"`
+
 则: `"gen:api": "ts-node --esm openapi.config.ts"`
 
 ## 参数
