@@ -1,5 +1,12 @@
 
 
+# [0.2.0](https://github.com/sharebravery/openapi-genuu/compare/v0.1.6...v0.2.0) (2024-03-08)
+
+
+### Features
+
+*  test ([46de224](https://github.com/sharebravery/openapi-genuu/commit/46de2247f89c8ed10dcecaa2a27cf35828cc8165))
+
 # [1.3.0](https://github.com/sharebravery/openapi2typescript/compare/v1.2.0...v1.3.0) (2023-09-14)
 
 
