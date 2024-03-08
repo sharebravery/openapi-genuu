@@ -19,7 +19,6 @@
     "start": "tsc -w",
     "test:linux": "rm -rf ./test/servers/ ./test/file-servers/ &&  npm run build && cd ./test && node ./test.js && cd ..",
     "test": "pnpm run build && rimraf ./test/servers/ ./test/file-servers/ &&  ts-node ./test/test.ts --project tsconfig.json && cd ..",
-    "release": "release-it"
   },
   "dependencies": {
     "@umijs/fabric": "^2.5.6",
