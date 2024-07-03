@@ -30,7 +30,7 @@ generateService({
 生成 api
 
 ```node
-npm run gen:api
+yarn run gen:api
 ```
 
 # 注意 如`"type": "module"`
@@ -52,5 +52,3 @@ npm run gen:api
 | enumStyle | 否 | 枚举样式 | string-literal \| enum | enum |
 | nullable | 否 | 使用 null 代替可选 | boolean | false |
 | dataFields | 否 | response 中数据字段 | string[] | - |
-
-> fork by https://github.com/chenshuai2144/openapi2typescript
