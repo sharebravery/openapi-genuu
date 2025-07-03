@@ -9,8 +9,10 @@
 
 ## 使用
 
-```node
-yarn add  openapi-genuu -D
+```sh
+yarn add openapi-genuu -D
+# 或
+pnpm add -D openapi-genuu
 ```
 
 在项目根目录新建 `openapi.config.ts`
@@ -25,17 +27,23 @@ generateService({
 });
 ```
 
-在 `package.json` 的 `script` 中添加 api: `"gen:api": "ts-node openapi.config.ts",`
+**推荐用法：先用 tsc 编译 openapi.config.ts，再用 node 执行**
 
-生成 api
+在 `package.json` 的 `scripts` 中添加：
 
-```node
-yarn run gen:api
+```json
+"gen:api": "tsc openapi.config.ts && node openapi.config.js"
 ```
 
-# 注意 如`"type": "module"`
+生成 api：
 
-则: `"gen:api": "ts-node --esm openapi.config.ts"`
+```sh
+yarn run gen:api
+# 或
+pnpm run gen:api
+```
+
+> **注意**：无需再用 ts-node 或 ts-node-esm，直接用 node 跑编译后的 JS 文件即可。
 
 ## 参数
 
