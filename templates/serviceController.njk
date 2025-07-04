@@ -9,10 +9,17 @@ export class {{className}}Service {
 {% for api in list -%}
 /** {{ api.desc if api.desc else '此处后端没有提供注释' }} {{api.method | upper}} {{ api.pathInComment | safe }} */
 static async {{ api.functionName }}(
+{%- if api.paramMode == 'id' %}
+  {{api.pathParamNames[0]}}: string,
+{%- elif api.paramMode == 'id+body' %}
+  {{api.pathParamNames[0]}}: string,
+  body: {{api.bodyType}},
+{%- else %}
 {%- if api.params and api.hasParams %}
   params: Models.{{api.typeName}},
 {%- endif -%}
-{%- if api.body -%}
+{%- endif -%}
+{%- if api.body and api.paramMode != 'id+body' and api.paramMode != 'id' -%}
   body: {% if api.body.propertiesList %}Models.{{api.body.type}}{% else %}{{ api.body.type }}{% endif %},
 {%- endif -%}
 {%- if api.file -%}
@@ -22,35 +29,40 @@ static async {{ api.functionName }}(
 {%- endif -%}
   options?: RequestOptions
 ): Promise<{{api.response.type}}> {
-  {% if api.params and api.params.path -%}
-  const { {% for param in api.params.path %}'{{ param.name }}': {{ param.alias }}, {% endfor %}
-  {% if api.params.path -%}
-  ...queryParams
-  {% endif -%}
-  } = params;
-  {% endif -%}
-  {% if api.hasFormData -%}
+{%- if api.onlyPathParam %}
+  return request<{{api.response.type}}>({
+    url: `{{ api.path }}`,
+    method: '{{ api.method | upper }}',
+    ...(options || {}),
+  });
+{%- else %}
+{%- if api.paramMode == 'params' and api.hasParams %}
+{%- if api.params and api.params.path and api.params.path.length > 0 %}
+  const { {% for param in api.params.path %}{{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}, ...queryParams } = params;
+{%- endif %}
+{%- endif %}
+{%- if api.hasFormData %}
   const formData = new FormData();
-  {% if api.file -%}
-  {% for file in api.file %}
+{%- if api.file %}
+{%- for file in api.file %}
   if({{file.title | safe}}){
-  {% if file.multiple %}
-  {{file.title | safe}}.forEach(f => formData.append('{{file.title | safe}}', f || ''));
-  {% else %}
-  formData.append('{{file.title | safe}}', {{file.title | safe}})
-  {% endif %}
+{%- if file.multiple %}
+    {{file.title | safe}}.forEach(f => formData.append('{{file.title | safe}}', f || ''));
+{%- else %}
+    formData.append('{{file.title | safe}}', {{file.title | safe}})
+{%- endif %}
   }
-  {% endfor %}
-  {%- endif -%}
-  {% if api.body %}
+{%- endfor %}
+{%- endif %}
+{%- if api.body %}
   Object.keys(body).forEach(ele => {
-    {% if genType === "ts" %}
+{%- if genType === "ts" %}
     const item = (body as any)[ele];
-    {% else %}
+{%- else %}
     const item = body[ele];
-    {% endif %}
+{%- endif %}
     if (item !== undefined && item !== null) {
-      {% if genType === "ts" %}
+{%- if genType === "ts" %}
       if (typeof item === 'object' && !(item instanceof File)) {
         if (item instanceof Array) {
           item.forEach((f) => formData.append(ele, f || ''));
@@ -60,47 +72,51 @@ static async {{ api.functionName }}(
       } else {
         formData.append(ele, item);
       }
-      {% else %}
+{%- else %}
       formData.append(ele, typeof item === 'object' ? JSON.stringify(item) : item);
-      {% endif %}
+{%- endif %}
     }
   });
-  {% endif %}
-  {% endif -%}
-  
+{%- endif %}
+{%- endif %}
   return request<{{api.response.type}}>({
     url: `{{ api.path }}`,
     method: '{{ api.method | upper }}',
-    {%- if api.hasHeader and api.body.mediaType not in ["multipart/form-data", "application/x-www-form-urlencoded"]%}
+{%- if api.hasHeader and api.body.mediaType not in ["multipart/form-data", "application/x-www-form-urlencoded"]%}
     headers: {
-      {%- if api.body.mediaType %}
+{%- if api.body.mediaType %}
       'Content-Type': '{{ api.body.mediaType | safe }}',
-      {%- endif %}
+{%- endif %}
     },
-    {%- endif %}
-    {%- if api.params and api.hasParams %}
+{%- endif %}
+{%- if api.paramMode == 'params' and api.hasParams %}
+{%- if api.params and api.params.path and api.params.path.length > 0 %}
     params: {
-      ...{{ 'queryParams' if api.params and api.params.path else 'params' }},
-      {%- for query in api.params.query %}
-        {%- if query.isComplexType %}
-          '{{query.name | safe}}': undefined,
-          ...{{ 'queryParams' if api.params and api.params.path else 'params' }}['{{query.name | safe}}'],
-        {%- endif %}
-      {%- endfor -%}
+      ...queryParams,
+{%- for query in api.params.query %}
+{%- if query.isComplexType %}
+        '{{query.name | safe}}': undefined,
+        ...queryParams['{{query.name | safe}}'],
+{%- endif %}
+{%- endfor %}
     },
-    {%- endif %}
-    {%- if api.hasFormData %}
+{%- else %}
+    params,
+{%- endif %}
+{%- endif %}
+{%- if api.hasFormData %}
     data: formData,
-    {%- if api.body.mediaType === "multipart/form-data" %}
+{%- if api.body.mediaType === "multipart/form-data" %}
     headers: { 'Content-Type': 'multipart/form-data' },
-    {%- endif %}
-    {%- else %}
-    {%- if api.body %}
+{%- endif %}
+{%- else %}
+{%- if api.body %}
     data: body,
-    {%- endif %}
-    {%- endif %}
+{%- endif %}
+{%- endif %}
     ...(options || {}),
   });
+{%- endif %}
 }
 
 {% endfor -%}

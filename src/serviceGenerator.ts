@@ -273,6 +273,16 @@ function toPascalCase(str: string): string {
     .replace(/^[a-z]/, c => c.toUpperCase());
 }
 
+// 判断是否为只包含一个 path 参数的 params 类型 class
+function shouldSkipSinglePathParamClass(props: any[][]) {
+  return (
+    props.length === 1 &&
+    props[0].length === 1 &&
+    props[0][0].name === 'id' &&
+    (props[0][0].in === 'path' || props[0][0].in === undefined)
+  );
+}
+
 class ServiceGenerator {
   protected apiData: TagAPIDataType = {};
 
@@ -564,27 +574,86 @@ class ServiceGenerator {
                 return `$\{${prefix}}${formattedPath}`;
               };
 
+              // 直接分析参数结构判断 service 方法参数类型
+              const pathParams = Array.isArray(finalParams.path) ? finalParams.path : [];
+              const queryParams = (finalParams && typeof finalParams === 'object' && 'query' in finalParams && Array.isArray(finalParams.query)) ? finalParams.query : [];
+              const hasBody = !!body;
+              const hasFile = !!file;
+              const onlySinglePathParam =
+                pathParams.length === 1 &&
+                queryParams.length === 0 &&
+                !hasBody &&
+                !hasFile;
+
+              // 新增：只有 path+body（无 query、无 file，且 path 数量为1）
+              const onlyPathAndBody =
+                pathParams.length === 1 &&
+                queryParams.length === 0 &&
+                hasBody &&
+                !hasFile;
+
+              // 处理 path 变量替换，支持多个 path 参数
+              let finalPath = getPrefixPath();
+              if (pathParams.length > 0) {
+                pathParams.forEach((p, idx) => {
+                  finalPath = finalPath.replace(new RegExp(`\\$\\{param${idx}\\}`, 'g'), `\u0000${p.name}\u0001`);
+                });
+                // 再统一替换为 ${name}
+                finalPath = finalPath.replace(/\u0000([^\u0001]+)\u0001/g, '${$1}');
+              }
+
+              // 注释 pathInComment 也同步替换
+              let finalPathInComment = formattedPath.replace(/\*/g, '&#42;');
+              if (pathParams.length > 0) {
+                pathParams.forEach((p, idx) => {
+                  finalPathInComment = finalPathInComment.replace(new RegExp(`\\$\\{param${idx}\\}`, 'g'), `\u0000${p.name}\u0001`);
+                });
+                finalPathInComment = finalPathInComment.replace(/\u0000([^\u0001]+)\u0001/g, '${$1}');
+              }
+
+              // 参数分支集中判断（修正健壮性）
+              let paramMode = 'params';
+              let pathParamNames = pathParams.map(p => p.name);
+              let bodyType = 'any';
+              if (body) {
+                if ('propertiesList' in body && body.propertiesList) {
+                  bodyType = `Models.${body.type}`;
+                } else if ('type' in body && body.type) {
+                  bodyType = body.type;
+                }
+              }
+
+              if (pathParams.length === 1 && queryParams.length === 0 && !hasFile && !hasBody) {
+                paramMode = 'id';
+              } else if (pathParams.length === 1 && queryParams.length === 0 && !hasFile && hasBody) {
+                paramMode = 'id+body';
+              } else {
+                paramMode = 'params';
+              }
+
               return {
                 ...newApi,
                 functionName,
                 typeName: this.getTypeName(newApi),
-                path: getPrefixPath(),
-                pathInComment: formattedPath.replace(/\*/g, '&#42;'),
+                path: finalPath,
+                pathInComment: finalPathInComment,
                 hasPathVariables: formattedPath.includes('{'),
                 hasApiPrefix: !!this.config.apiPrefix,
                 method: newApi.method,
-                // 如果 functionName 和 summary 相同，则不显示 summary
-                desc:
-                  functionName === newApi.summary
-                    ? newApi.description
-                    : [newApi.summary, newApi.description].filter((s) => s).join(' '),
-                hasHeader: !!(params && params.header) || !!(body && body.mediaType),
+                desc: newApi.summary || newApi.description || newApi.operationId,
                 params: finalParams,
-                hasParams: Boolean(Object.keys(finalParams || {}).length),
+                hasParams: !!finalParams && Object.keys(finalParams).length > 0,
                 body,
                 file,
-                hasFormData: formData,
                 response,
+                onlyPathParam: onlySinglePathParam,
+                onlyPathAndBody,
+                pathParamName: onlySinglePathParam || onlyPathAndBody ? pathParams[0].name : undefined,
+                hasFormData: !!file,
+                hasHeader: !!body || !!file,
+                paramMode,
+                pathParamNames,
+                bodyType,
               };
             } catch (error) {
               // eslint-disable-next-line no-console
@@ -868,6 +937,9 @@ class ServiceGenerator {
             });
           });
 
+          // 主 schema 生成部分过滤
+          if (shouldSkipSinglePathParamClass(props)) return null;
+
           return {
             typeName: toPascalCase(resolveTypeName(typeName).replace(/«.+»/g, '<T>')),
             type: getDefinesType(),
@@ -958,7 +1030,16 @@ class ServiceGenerator {
           });
         }
 
-        if (props.length > 0 && data) {
+        // 判断 props 是否只包含 path 参数，且数量为1
+        const onlyPathParam =
+          props.length === 1 &&
+          props[0].length === 1 &&
+          (operationObject.parameters || []).every((p: any) => p.in === 'path') &&
+          !pathItem.parameters &&
+          !operationObject.requestBody;
+
+        // params 替换部分过滤
+        if (props.length > 0 && data && !shouldSkipSinglePathParamClass([props])) {
           data.push([
             {
               typeName: this.getTypeName({ ...operationObject, method, path: p }),
@@ -977,6 +1058,7 @@ class ServiceGenerator {
       data &&
       data
         .reduce((p, c) => p && c && p.concat(c), [])
+        .filter(Boolean)
         // 排序下，要不每次git都乱了
         .sort((a, b) => a.typeName.localeCompare(b.typeName))
     );

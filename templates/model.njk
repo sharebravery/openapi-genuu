@@ -61,7 +61,3 @@
     {%- endif %}
   {%- endif %}
 {% endfor %}
-// 类型 re-export
-{% for type in list -%}
-export type {{ type.typeName }}Type = {{ type.typeName }};
-{% endfor %}

@@ -1,16 +1,18 @@
-# OpenAPI Generator
+# OpenAPI TypeScript Service Generator
 
 一个基于 OpenAPI/Swagger 规范生成 TypeScript 代码的工具。
 
 ## 特性
 
 - 🚀 基于 OpenAPI 3.0 规范
-- �� 生成 TypeScript 类型定义（大驼峰命名，类型 re-export）
-- 🔧 支持自定义模板
 - 🎯 严格的类型检查
 - 📦 支持多种输出格式
 - 🏷️ 所有生成文件带自动生成注释
 - 🧩 方法名为小驼峰+大写 method 后缀（如 getUserById_GET）
+- **参数分支智能生成**：根据 OpenAPI path/query/body/file 参数结构，自动生成最简洁、类型安全的 service 方法签名。
+- **注释完整还原**：所有接口注释优先使用 OpenAPI 的 summary/description 字段，保证文档准确。
+- **严格适配 OpenAPI 规范**：支持 path/query/body/file/header 等主流参数类型，兼容绝大多数后端。
+- **模板健壮、无未定义变量**：所有参数分支和变量名都自动适配，无论参数组合如何都不会生成语法错误。
 
 ## 代码风格与最佳实践
 
@@ -207,3 +209,58 @@ export class UserService {
 - 所有生成文件顶部有自动生成注释。
 - 支持类型 re-export，便于业务层统一引用。
 - 代码风格和模板拼接已做严格处理，避免语法错误。
+
+## 参数分支生成规则
+
+| path 参数 | query 参数 | body 参数 | file 参数 | 生成方法参数 | 示例 |
+| --- | --- | --- | --- | --- | --- |
+| 1 个 | 无 | 无 | 无 | id: string | `getById(id: string, ...)` |
+| 1 个 | 无 | 有 | 无 | id: string, body: ... | `updateById(id: string, body, ...)` |
+| 1 个 | 有 | 无/有 | 无/有 | params: Models.Xxx | `getList(params, ...)` |
+| 多个 | 任意 | 任意 | 任意 | params: Models.Xxx | `batchUpdate(params, ...)` |
+| 无 | 有/无 | 有/无 | 任意 | params: Models.Xxx | `create(params, ...)` |
+
+- **只有 path 参数**：`id: string`
+- **只有 path+body**：`id: string, body: ...`
+- **其它情况（有 query/file/多个 path/无 path）**：`params: Models.XXXParams`
+
+## 注释生成规则
+
+- 优先用 OpenAPI 的 `summary` 字段
+- 没有 `summary` 时用 `description`
+- 都没有时用 `operationId`
+- 注释自动带上 HTTP 方法和路径
+
+**示例：**
+
+```ts
+/** Get captcha ID GET /api/v1/captcha/id */
+static async GetCaptchaID_GET(options?: RequestOptions): Promise<...> { ... }
+```
+
+## 适配性说明
+
+- 严格遵循 OpenAPI 3.0/Swagger 2.0 规范
+- 支持 path/query/body/file/header 等主流参数类型
+- 兼容绝大多数主流后端（Java/Spring、Go、Node、Python 等）生成的 OpenAPI 文档
+- 模板和生成逻辑分工清晰，易于扩展和自定义
+
+## 典型生成示例
+
+```ts
+// 只有 path 参数
+static async GetById(id: string, options?: RequestOptions): Promise<...> { ... }
+
+// 只有 path+body
+static async UpdateById(id: string, body: UpdateForm, options?: RequestOptions): Promise<...> { ... }
+
+// 只有 query 参数
+static async QueryList(params: QueryListParams, options?: RequestOptions): Promise<...> { ... }
+
+// path+query
+static async QueryDetail(params: QueryDetailParams, options?: RequestOptions): Promise<...> { ... }
+```
+
+---
+
+如需自定义参数风格、注释格式或有其它生成需求，欢迎反馈！
