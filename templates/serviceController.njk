@@ -9,58 +9,18 @@ export class {{className}}Service {
 /** {{ api.desc if api.desc else '此处后端没有提供注释' }} {{api.method | upper}} {{ api.pathInComment | safe }} */
 static async {{ api.functionName }}(
 {%- if api.params and api.hasParams %}
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params
-  {%- if genType === "ts" -%}
-  : {{namespace}}.{{api.typeName}}
-    {# header 入参 -#}
-    {% if api.params.header -%}
-    & { // header
-    {% for param in api.params.header -%}
-    {% if param.description -%}
-    /** {{ param.description }} */
-    {% endif -%}
-      '{{ param.name }}'
-      {{- "?" if not param.required }}
-      {{- (": " + param.type + ";") | safe }}
-    {% endfor -%}
-    }
-    {%- endif -%}
-  {%- endif -%}
-  {%- if api.hasParams -%}
-  {{ "," if api.body or api.file}}
-  {%- endif -%}
+  params: {{namespace}}.{{api.typeName}},
 {%- endif -%}
 {%- if api.body -%}
-  body
-  {%- if genType === "ts" -%}
-  : {% if api.body.propertiesList %}{
-    {%- for prop in api.body.propertiesList %}
-    {% if prop.schema.description -%}
-    /** {{ prop.schema.description }} */
-    {% endif -%}
-    {{ prop.key }}{{ "?" if not prop.schema.required }}: {{ prop.schema.type }},
-    {%- endfor %}
-  }
-  {%- else -%}
-  {{ api.body.type }}
-  {%- endif -%}
-  {%- endif -%}
-  {{ "," if api.file }}
-{%- endif %}
+  body: {% if api.body.propertiesList %}{{namespace}}.{{api.body.type}}{% else %}{{ api.body.type }}{% endif %},
+{%- endif -%}
 {%- if api.file -%}
 {%- for file in api.file -%}
-{{file.title | safe}}
-{%- if genType === "ts" -%}
-{{- "?" if not api.file.required -}}
-: File {{ "[]" if file.multiple }}
-{%- endif -%}
-{{"," if not loop.last }}
+{{file.title | safe}}: File{{ "[]" if file.multiple }},
 {%- endfor -%}
 {%- endif -%}
-{{ "," if api.body or api.hasParams or api.file }}
-  options {{ "?: {[key: string]: any}" if genType === "ts" }}
-) {
+  options?: RequestOptions
+): Promise<{{api.response.type}}> {
   {% if api.params and api.params.path -%}
   const { {% for param in api.params.path %}'{{ param.name }}': {{ param.alias }}, {% endfor %}
   {% if api.params.path -%}
@@ -107,11 +67,7 @@ static async {{ api.functionName }}(
   {% endif %}
   {% endif -%}
   
-  {% if api.hasPathVariables or api.hasApiPrefix -%}
-  return request{{ ("<" + api.response.type + ">") | safe if genType === "ts" }}({
-  {% else -%}
-  return request{{ ("<" + api.response.type + ">") | safe if genType === "ts" }}({
-  {% endif -%}
+  return request<{{api.response.type}}>({
     url: `{{ api.path }}`,
     method: '{{ api.method | upper }}',
     {%- if api.hasHeader and api.body.mediaType not in ["multipart/form-data", "application/x-www-form-urlencoded"]%}
@@ -147,4 +103,9 @@ static async {{ api.functionName }}(
 }
 
 {% endfor -%}
+}
+
+// 请求选项类型
+export interface RequestOptions {
+  [key: string]: any;
 }

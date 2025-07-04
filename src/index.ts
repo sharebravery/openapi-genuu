@@ -78,6 +78,21 @@ export type GenerateServiceProps = {
    * example: ['result', 'res']
    */
   dataFields?: string[];
+
+  /**
+   * 是否生成严格的类型定义
+   */
+  strictTypes?: boolean;
+
+  /**
+   * 是否使用 interface 而不是 class
+   */
+  useInterface?: boolean;
+
+  /**
+   * 自定义响应类型包装器
+   */
+  responseWrapper?: string;
 };
 
 const converterSwaggerToOpenApi = (swagger: any) => {

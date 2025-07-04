@@ -210,35 +210,39 @@ export const stripDot = (str: string) => {
   return str.replace(/[-_ .](\w)/g, (_all, letter) => letter.toUpperCase());
 };
 
-
 export function getInitialValue(type: string, required: boolean, schema?: any): string {
-  // 如果 schema 中有默认值，优先使用 schema 中的默认值
+  // 可选字段不赋默认值
+  if (!required) return '';
+  // schema.default 优先
   if (schema && schema.default !== undefined) {
-    if (typeof schema.default === 'string') {
-      return `'${schema.default}'`;
-    } else if (typeof schema.default === 'number') {
-      return schema.default.toString();
-    } else if (typeof schema.default === 'boolean') {
-      return schema.default.toString();
-    } else {
-      return JSON.stringify(schema.default);
+    if (typeof schema.default === 'string') return ` = '${schema.default}'`;
+    if (typeof schema.default === 'number' || typeof schema.default === 'boolean') return ` = ${schema.default}`;
+    if (Array.isArray(schema.default)) return ' = []';
+    return ` = ${JSON.stringify(schema.default)}`;
+  }
+  // union/enum 类型，取第一个值，且模板拼接时只拼接类型和 = 默认值，避免多余内容
+  if (/^".*"(\s*\|\s*".*")+$/.test(type)) {
+    // 只保留类型，默认值单独拼接
+    const unionType = type.replace(/"([^"]+)"/g, '"$1"').replace(/\s*\|\s*/g, ' | ');
+    const first = type.match(/"([^"]+)"/);
+    if (first && first[1]) {
+      // 返回特殊标记，模板拼接时只拼接 type 和 = "default"，避免 type"default" 这种错误
+      return `|UNION_DEFAULT|${first[1]}`;
     }
+    return '';
   }
-
-  // 否则使用类型默认值
-  if (type === 'number') {
-    return '0';
-  } else if (type === 'string') {
-    return required ? "''" : 'undefined';
-  } else if (type === 'boolean') {
-    return 'false';
-  } else if (type === 'array') {
-    return '[]';
-  } else if (type === 'date') {
-    return 'new Date()';
-  } else if (type === 'object') {
-    return '{}';
-  } else {
-    return 'undefined';
-  }
+  // 数组类型
+  if (type.trim().endsWith('[]') || /^Array<.*>$/.test(type.trim())) return ' = []';
+  // number 类型
+  if (type.trim() === 'number') return ' = 0';
+  // string 类型
+  if (type.trim() === 'string') return " = ''";
+  // boolean 类型
+  if (type.trim() === 'boolean') return ' = false';
+  // 对象类型
+  if (type.trim() === 'object' || type.trim().startsWith('{')) return ' = {}';
+  // 兜底：如果类型名里有数字（如 number1），只返回类型默认值
+  if (/^number\d+$/.test(type.trim())) return ' = 0';
+  if (/^string\d+$/.test(type.trim())) return " = ''";
+  return '';
 }

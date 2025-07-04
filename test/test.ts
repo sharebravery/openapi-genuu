@@ -26,7 +26,8 @@ const gen = async () => {
 
   await openAPI.generateService({
     schemaPath: `http://localhost:8010/swagger/doc.json`,
-    serversPath: './generated/orka',
+    serversPath: './generated/orka-new',
+    strictTypes: true,
   });
 
 

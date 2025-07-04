@@ -90,7 +90,7 @@ function getRefName(refObject: any): string {
 
 const getType = (schemaObject: SchemaObject | undefined, namespace: string = ''): string => {
   if (schemaObject === undefined || schemaObject === null) {
-    return 'any';
+    return 'unknown';
   }
   if (typeof schemaObject !== 'object') {
     return schemaObject;
@@ -144,7 +144,7 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
       return 'boolean';
     }
 
-    return 'any';
+    return 'unknown';
   }
 
   if (Array.isArray(type)) {
@@ -155,7 +155,7 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
 
   const invalidType = checkBaseType(type);
 
-  if (invalidType !== 'any') return invalidType;
+  if (invalidType !== 'unknown') return invalidType;
 
   if (type === 'array') {
     let { items } = schemaObject;
@@ -193,7 +193,7 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
   }
   if (schemaObject.type === 'object' || schemaObject.properties) {
     if (!Object.keys(schemaObject.properties || {}).length) {
-      return 'Record<string, any>';
+      return 'Record<string, unknown>';
     }
     return `{ ${Object.keys(schemaObject.properties)
       .map((key) => {
@@ -214,7 +214,7 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
       })
       .join('')}}`;
   }
-  return 'any';
+  return 'unknown';
 };
 
 export const getGenInfo = (isDirExist: boolean, appName: string, absSrcPath: string) => {
@@ -398,13 +398,36 @@ class ServiceGenerator {
   };
 
   public getFuncationName(data: APIDataType) {
-    // 获取路径相同部分
-    const pathBasePrefix = this.getBasePrefix(Object.keys(this.openAPIData.paths));
-    return this.config.hook && this.config.hook.customFunctionName
-      ? this.config.hook.customFunctionName(data)
-      : data.operationId
-        ? this.resolveFunctionName(stripDot(data.operationId), data.method)
-        : this.genDefaultFunctionName(data.path, pathBasePrefix) + `_${data.method.toUpperCase()}`;
+    const { operationId, summary, path } = data;
+    const functionName = this.config?.hook?.customFunctionName?.(data) || operationId || summary;
+
+    if (functionName) {
+      // 将下划线、连字符等分隔符转换为驼峰命名
+      const camelCaseName = functionName
+        .replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))
+        .replace(/^[A-Z]/, (c) => c.toLowerCase());
+
+      return camelCaseName;
+    }
+
+    // 如果没有 operationId 和 summary，从 path 生成
+    const pathSegments = path.split('/').filter(Boolean);
+    const lastSegment = pathSegments[pathSegments.length - 1];
+    const method = data.method.toLowerCase();
+
+    // 生成类似 getUserById 的函数名
+    const actionMap = {
+      get: 'get',
+      post: 'create',
+      put: 'update',
+      delete: 'delete',
+      patch: 'patch'
+    };
+
+    const action = actionMap[method] || method;
+    const resource = lastSegment.replace(/[{}]/g, '').replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''));
+
+    return `${action}${resource.charAt(0).toUpperCase() + resource.slice(1)}`;
   }
 
   public getTypeName(data: APIDataType) {
@@ -819,7 +842,7 @@ class ServiceGenerator {
             if (result.type) {
               return (defines[typeName] as SchemaObject).type === 'object' || result.type;
             }
-            return 'Record<string, any>';
+            return 'Record<string, unknown>';
           };
 
           /** 
@@ -945,7 +968,7 @@ class ServiceGenerator {
           data.push([
             {
               typeName: this.getTypeName({ ...operationObject, method, path: p }),
-              type: 'Record<string, any>',
+              type: 'Record<string, unknown>',
               parent: undefined,
               props: [props],
               isEnum: false,
@@ -1013,8 +1036,11 @@ class ServiceGenerator {
           desc: [schema.title, schema.description].filter((s) => s).join(' '),
           // 如果没有 required 信息，默认全部是非必填
           required: required,
-          initialValue: !required && isEnum ? 'undefined' : (isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required, schema))
-          // initialValue: isEnum ? 'undefined' : getInitialValue(sType, required),
+          initialValue: !required && isEnum ? 'undefined' : (isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required, schema)),
+          // 新增 unionDefault 字段
+          unionDefault: /^".*"(\s*\|\s*".*")+$/.test(sType)
+            ? (sType.match(/"([^"]+)"/) ? sType.match(/"([^"]+)"/)[1] : undefined)
+            : undefined,
         };
       })
       : [];

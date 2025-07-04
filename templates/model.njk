@@ -4,9 +4,13 @@ export namespace {{ namespace }} {
   {% for type in list -%}
     {%- if type.props.length %}
       {%- if type.isEnum %}
-      enum {{ type.typeName | safe }} 
+      export enum {{ type.typeName | safe }} 
+      {%- else %}
+      {%- if useInterface %}
+      export interface {{ type.typeName | safe }} 
       {%- else %}
       export class {{ type.typeName | safe }} 
+      {%- endif %}
       {%- endif %}
       {%- for prop in type.props %}
         {%- if prop.length > 1 %}
@@ -28,7 +32,19 @@ export namespace {{ namespace }} {
               {%- if nullable %}
                 {{ p.name }}: {{ p.type | safe }}{{'' if p.required else '| null'}};
               {%- else %}
-                {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }} = {{ p.initialValue }};
+                {%- if useInterface %}
+                {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }};
+                {%- else %}
+                  {%- if p.required %}
+                    {%- if p.unionDefault %}
+                      {{ p.name }}: {{ p.type | safe }} = "{{ p.unionDefault }}";
+                    {%- else %}
+                      {{ p.name }}: {{ p.type | safe }}{{ p.initialValue }};
+                    {%- endif %}
+                  {%- else %}
+                    {{ p.name }}?: {{ p.type | safe }};
+                  {%- endif %}
+                {%- endif %}
               {%- endif %}
             {%- endif %}
           {%- endfor %}
@@ -49,7 +65,7 @@ export namespace {{ namespace }} {
       {%- if type.isEnum  %}
        export enum {{ type.typeName | safe }} {{ type.type }};
       {%- else %}
-     type {{ type.typeName | safe }} = {{ type.type }};
+     export type {{ type.typeName | safe }} = {{ type.type }};
       {%- endif %}
     {%- endif %}
   {% endfor %}
