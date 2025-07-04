@@ -5,10 +5,20 @@
 ## 特性
 
 - 🚀 基于 OpenAPI 3.0 规范
-- 📝 生成 TypeScript 类型定义
+- �� 生成 TypeScript 类型定义（大驼峰命名，类型 re-export）
 - 🔧 支持自定义模板
 - 🎯 严格的类型检查
 - 📦 支持多种输出格式
+- 🏷️ 所有生成文件带自动生成注释
+- 🧩 方法名为小驼峰+大写 method 后缀（如 getUserById_GET）
+
+## 代码风格与最佳实践
+
+- 所有类型、接口、类均为大驼峰命名（PascalCase）
+- 所有 service 方法名为小驼峰+大写 method 后缀，避免重名
+- 所有生成文件顶部有自动生成注释，提示勿手动修改
+- 支持类型 re-export，便于统一引用
+- 模板拼接更严谨，避免多余括号、逗号
 
 ## 安装
 
@@ -158,3 +168,42 @@ export class UserService {
 ## 许可证
 
 MIT
+
+## 示例
+
+```typescript
+// THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
+export class GetUserByIdParams {
+  id: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+}
+
+export type UserType = User;
+
+export class UserService {
+  /** 获取用户信息 GET /api/v1/user/{id} */
+  static async getUserById_GET(
+    params: API.GetUserByIdParams,
+    options?: RequestOptions,
+  ): Promise<API.User> {
+    return request<API.User>({
+      url: `/api/v1/user/${params.id}`,
+      method: 'GET',
+      params: { ...params },
+      ...(options || {}),
+    });
+  }
+}
+```
+
+## 其他说明
+
+- 生成的所有类型、接口、类均为大驼峰命名，符合 TypeScript 社区规范。
+- 所有 service 方法名均为小驼峰+大写 method 后缀（如 getUserById_GET、createUser_POST）。
+- 所有生成文件顶部有自动生成注释。
+- 支持类型 re-export，便于业务层统一引用。
+- 代码风格和模板拼接已做严格处理，避免语法错误。

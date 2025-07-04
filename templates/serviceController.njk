@@ -1,7 +1,8 @@
+// THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
 // @ts-ignore
 /* eslint-disable */
 {{ requestImportStatement }}
-import { {{namespace}} } from "./models";
+import * as Models from './models';
 
 export class {{className}}Service {
 
@@ -9,10 +10,10 @@ export class {{className}}Service {
 /** {{ api.desc if api.desc else '此处后端没有提供注释' }} {{api.method | upper}} {{ api.pathInComment | safe }} */
 static async {{ api.functionName }}(
 {%- if api.params and api.hasParams %}
-  params: {{namespace}}.{{api.typeName}},
+  params: Models.{{api.typeName}},
 {%- endif -%}
 {%- if api.body -%}
-  body: {% if api.body.propertiesList %}{{namespace}}.{{api.body.type}}{% else %}{{ api.body.type }}{% endif %},
+  body: {% if api.body.propertiesList %}Models.{{api.body.type}}{% else %}{{ api.body.type }}{% endif %},
 {%- endif -%}
 {%- if api.file -%}
 {%- for file in api.file -%}

@@ -1,72 +1,67 @@
+// THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
 // @ts-ignore
 /* eslint-disable */
-export namespace {{ namespace }} {
-  {% for type in list -%}
-    {%- if type.props.length %}
-      {%- if type.isEnum %}
-      export enum {{ type.typeName | safe }} 
-      {%- else %}
-      {%- if useInterface %}
-      export interface {{ type.typeName | safe }} 
-      {%- else %}
-      export class {{ type.typeName | safe }} 
+{% for type in list -%}
+  {%- if type.props.length %}
+    {%- if type.isEnum %}
+    export enum {{ type.typeName | safe }} 
+    {%- else %}
+    {%- if useInterface %}
+    export interface {{ type.typeName | safe }} 
+    {%- else %}
+    export class {{ type.typeName | safe }} 
+    {%- endif %}
+    {%- endif %}
+    {%- for prop in type.props %}
+      {%- if prop.length > 1 %}
+        {
       {%- endif %}
-      {%- endif %}
-      {%- for prop in type.props %}
-        {%- if prop.length > 1 %}
-          {
+      {%- if prop.length == 1 %}
+        {%- if not prop[0].$ref or prop[0].name %}
+        {
         {%- endif %}
-        {%- if prop.length == 1 %}
-          {%- if not prop[0].$ref or prop[0].name %}
-          {
+      {%- endif %}
+        {%- for p in prop %}
+          {%- if p.desc %}
+            /** {{ p.desc }} */
           {%- endif %}
-        {%- endif %}
-          {%- for p in prop %}
-            {%- if p.desc %}
-              /** {{ p.desc }} */
-            {%- endif %}
-            {%- if p["$ref"] and not p.name %}
-              // {{ p.$ref }}
-              {{ p.type | safe }}
+          {%- if p["$ref"] and not p.name %}
+            // {{ p.$ref }}
+            {{ p.type | safe }}
+          {%- else %}
+            {%- if nullable %}
+              {{ p.name }}: {{ p.type | safe }}{{'' if p.required else '| null'}};
             {%- else %}
-              {%- if nullable %}
-                {{ p.name }}: {{ p.type | safe }}{{'' if p.required else '| null'}};
+              {%- if useInterface %}
+              {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }};
               {%- else %}
-                {%- if useInterface %}
-                {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }};
-                {%- else %}
-                  {%- if p.required %}
-                    {%- if p.unionDefault %}
-                      {{ p.name }}: {{ p.type | safe }} = "{{ p.unionDefault }}";
-                    {%- else %}
-                      {{ p.name }}: {{ p.type | safe }}{{ p.initialValue }};
-                    {%- endif %}
-                  {%- else %}
-                    {{ p.name }}?: {{ p.type | safe }};
-                  {%- endif %}
-                {%- endif %}
+              {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }}{% if p.initialValue %} = {{ p.initialValue | trim | replace('= ', '') }}{% endif %};
               {%- endif %}
             {%- endif %}
-          {%- endfor %}
-        {%- if prop.length > 1 %}
-          }
-        {%- endif %}
-        {%- if prop.length == 1 %}
-          {%- if not prop[0].$ref or prop[0].name %}
-          }
           {%- endif %}
-        {%- endif %}
-        {%- if prop.length == 0 %}
-          {}
-        {%- endif %}
-        {{ '' if loop.last === true else ' & '  }}
-      {%- endfor %}
-    {%- else %}
-      {%- if type.isEnum  %}
-       export enum {{ type.typeName | safe }} {{ type.type }};
-      {%- else %}
-     export type {{ type.typeName | safe }} = {{ type.type }};
+        {%- endfor %}
+      {%- if prop.length > 1 %}
+        }
       {%- endif %}
+      {%- if prop.length == 1 %}
+        {%- if not prop[0].$ref or prop[0].name %}
+        }
+        {%- endif %}
+      {%- endif %}
+      {%- if prop.length == 0 %}
+        {}
+      {%- endif %}
+      {{ '' if loop.last === true else ' & '  }}
+    {%- endfor %}
+  {%- else %}
+    {%- if type.isEnum  %}
+     export enum {{ type.typeName | safe }} {{ type.type }};
+    {%- else %}
+   export type {{ type.typeName | safe }} = {{ type.type }};
     {%- endif %}
-  {% endfor %}
-}
+  {%- endif %}
+{% endfor %}
+// 类型 re-export
+{% for type in list -%}
+export type {{ type.typeName }}Type = {{ type.typeName }};
+{% endfor %}

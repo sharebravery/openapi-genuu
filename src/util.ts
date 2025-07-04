@@ -220,14 +220,11 @@ export function getInitialValue(type: string, required: boolean, schema?: any): 
     if (Array.isArray(schema.default)) return ' = []';
     return ` = ${JSON.stringify(schema.default)}`;
   }
-  // union/enum 类型，取第一个值，且模板拼接时只拼接类型和 = 默认值，避免多余内容
+  // union/enum 类型，取第一个值
   if (/^".*"(\s*\|\s*".*")+$/.test(type)) {
-    // 只保留类型，默认值单独拼接
-    const unionType = type.replace(/"([^"]+)"/g, '"$1"').replace(/\s*\|\s*/g, ' | ');
     const first = type.match(/"([^"]+)"/);
     if (first && first[1]) {
-      // 返回特殊标记，模板拼接时只拼接 type 和 = "default"，避免 type"default" 这种错误
-      return `|UNION_DEFAULT|${first[1]}`;
+      return ` = "${first[1]}"`;
     }
     return '';
   }

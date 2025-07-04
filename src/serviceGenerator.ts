@@ -88,7 +88,7 @@ function getRefName(refObject: any): string {
   return resolveTypeName(refPaths[refPaths.length - 1]) as string;
 }
 
-const getType = (schemaObject: SchemaObject | undefined, namespace: string = ''): string => {
+const getType = (schemaObject: SchemaObject | undefined, addModelsPrefix: boolean = true): string => {
   if (schemaObject === undefined || schemaObject === null) {
     return 'unknown';
   }
@@ -96,7 +96,8 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
     return schemaObject;
   }
   if (schemaObject.$ref) {
-    return [namespace, getRefName(schemaObject)].filter((s) => s).join('.');
+    const typeName = getRefName(schemaObject);
+    return addModelsPrefix ? `Models.${typeName}` : typeName;
   }
 
   let { type } = schemaObject as any;
@@ -165,31 +166,29 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
 
     if (Array.isArray(items)) {
       const arrayItemType = (items as any)
-        .map((subType) => getType(subType.schema || subType, namespace))
+        .map((subType) => getType(subType.schema || subType, addModelsPrefix))
         .toString();
       return `[${arrayItemType}]`;
     }
-    const arrayType = getType(items, namespace);
+    const arrayType = getType(items, addModelsPrefix);
     return arrayType.includes(' | ') ? `(${arrayType})[]` : `${arrayType}[]`;
   }
 
-  if (type === 'enum') {
-    return Array.isArray(schemaObject.enum)
-      ? Array.from(
-        new Set(
-          schemaObject.enum.map((v) =>
-            typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v),
-          ),
+  if (schemaObject && schemaObject.enum && !addModelsPrefix) {
+    return Array.from(
+      new Set(
+        schemaObject.enum.map((v) =>
+          typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v, addModelsPrefix),
         ),
-      ).join(' | ')
-      : 'string';
+      ),
+    ).join(' | ');
   }
 
   if (schemaObject.oneOf && schemaObject.oneOf.length) {
-    return schemaObject.oneOf.map((item) => getType(item, namespace)).join(' | ');
+    return schemaObject.oneOf.map((item) => getType(item, addModelsPrefix)).join(' | ');
   }
   if (schemaObject.allOf && schemaObject.allOf.length) {
-    return `(${schemaObject.allOf.map((item) => getType(item, namespace)).join(' & ')})`;
+    return `(${schemaObject.allOf.map((item) => getType(item, addModelsPrefix)).join(' & ')})`;
   }
   if (schemaObject.type === 'object' || schemaObject.properties) {
     if (!Object.keys(schemaObject.properties || {}).length) {
@@ -209,7 +208,7 @@ const getType = (schemaObject: SchemaObject | undefined, namespace: string = '')
          * */
         return `'${key}'${required ? '' : '?'}: ${getType(
           schemaObject.properties && schemaObject.properties[key],
-          namespace,
+          addModelsPrefix,
         )}; `;
       })
       .join('')}}`;
@@ -266,6 +265,13 @@ const DEFAULT_PATH_PARAM: ParameterObject = {
   isObject: false,
   type: 'string',
 };
+
+// 工具函数：转大驼峰
+function toPascalCase(str: string): string {
+  return str
+    .replace(/(^|_|-|\s)+(\w)/g, (_, __, c) => c ? c.toUpperCase() : '')
+    .replace(/^[a-z]/, c => c.toUpperCase());
+}
 
 class ServiceGenerator {
   protected apiData: TagAPIDataType = {};
@@ -353,9 +359,7 @@ class ServiceGenerator {
 
     // 生成 ts 类型声明 'typings.d.ts'
     this.genFileFromTemplate(FILE_TYPE === 'model' ? 'models.ts' : 'typings.d.ts', FILE_TYPE, {
-      namespace: this.config.namespace,
       nullable: this.config.nullable,
-      // namespace: 'API',
       list: uniqueModelTP,
       disableTypeCheck: false,
     });
@@ -369,7 +373,6 @@ class ServiceGenerator {
         this.getFinalFileName(`${tp.className}.ts`),
         template,
         {
-          namespace: this.config.namespace,
           requestImportStatement: this.config.requestImportStatement,
           disableTypeCheck: false,
           className: tp.className,
@@ -398,43 +401,32 @@ class ServiceGenerator {
   };
 
   public getFuncationName(data: APIDataType) {
-    const { operationId, summary, path } = data;
+    const { operationId, summary, path, method } = data;
     const functionName = this.config?.hook?.customFunctionName?.(data) || operationId || summary;
 
+    let baseName: string;
     if (functionName) {
-      // 将下划线、连字符等分隔符转换为驼峰命名
-      const camelCaseName = functionName
-        .replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))
-        .replace(/^[A-Z]/, (c) => c.toLowerCase());
-
-      return camelCaseName;
+      baseName = toPascalCase(functionName);
+    } else {
+      const pathSegments = path.split('/').filter(Boolean);
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      const actionMap = {
+        get: 'get',
+        post: 'create',
+        put: 'update',
+        delete: 'delete',
+        patch: 'patch'
+      };
+      const action = actionMap[method.toLowerCase()] || method.toLowerCase();
+      const resource = lastSegment.replace(/[{}]/g, '').replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''));
+      baseName = toPascalCase(`${action}${resource.charAt(0).toUpperCase() + resource.slice(1)}`);
     }
-
-    // 如果没有 operationId 和 summary，从 path 生成
-    const pathSegments = path.split('/').filter(Boolean);
-    const lastSegment = pathSegments[pathSegments.length - 1];
-    const method = data.method.toLowerCase();
-
-    // 生成类似 getUserById 的函数名
-    const actionMap = {
-      get: 'get',
-      post: 'create',
-      put: 'update',
-      delete: 'delete',
-      patch: 'patch'
-    };
-
-    const action = actionMap[method] || method;
-    const resource = lastSegment.replace(/[{}]/g, '').replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''));
-
-    return `${action}${resource.charAt(0).toUpperCase() + resource.slice(1)}`;
+    return `${baseName}_${method.toUpperCase()}`;
   }
 
   public getTypeName(data: APIDataType) {
-    const namespace = this.config.namespace ? `${this.config.namespace}.` : '';
     const typeName = this.config?.hook?.customTypeName?.(data) || this.getFuncationName(data);
-
-    return resolveTypeName(`${namespace}${typeName ?? data.operationId}Params`);
+    return toPascalCase(`${typeName ?? data.operationId}Params`);
   }
 
   public getServiceTP() {
@@ -661,7 +653,7 @@ class ServiceGenerator {
               key: p,
               schema: {
                 ...schema.properties[p],
-                type: getType(schema.properties[p], this.config.namespace),
+                type: getType(schema.properties[p]),
                 required: schema.required?.includes(p) ?? false,
               },
             };
@@ -679,9 +671,10 @@ class ServiceGenerator {
     return {
       mediaType,
       required,
-      type: getType(schema, this.config.namespace),
+      type: getType(schema),
     };
   }
+
   public getFileTP(requestBody: any = {}) {
     const reqBody: RequestBodyObject = this.resolveRefObject(requestBody);
     if (reqBody && reqBody.content && reqBody.content['multipart/form-data']) {
@@ -690,6 +683,7 @@ class ServiceGenerator {
     }
     return null;
   }
+
   public resolveFileTP(obj: any) {
     let ret = [];
     const resolved = this.resolveObject(obj);
@@ -761,7 +755,7 @@ class ServiceGenerator {
 
     return {
       mediaType,
-      type: getType(schema, this.config.namespace),
+      type: getType(schema),
     };
   }
 
@@ -788,7 +782,7 @@ class ServiceGenerator {
             return {
               ...p,
               isObject: isDirectObject || isRefObject,
-              type: getType(p.schema || DEFAULT_SCHEMA, this.config.namespace),
+              type: getType(p.schema || DEFAULT_SCHEMA),
             };
           });
 
@@ -875,7 +869,7 @@ class ServiceGenerator {
           });
 
           return {
-            typeName: resolveTypeName(typeName).replace(/«.+»/g, '<T>'),
+            typeName: toPascalCase(resolveTypeName(typeName).replace(/«.+»/g, '<T>')),
             type: getDefinesType(),
             parent: result.parent,
             props: result.props || [],
@@ -936,7 +930,7 @@ class ServiceGenerator {
                 };
               }
             } else {
-              const pType = getType(parameter.schema);
+              const pType = getType(parameter.schema, false);
 
               props.push({
                 desc: parameter.description ?? '',
@@ -959,7 +953,7 @@ class ServiceGenerator {
               desc: parameter.description ?? '',
               name: parameter.name,
               required: parameter.required,
-              type: getType(parameter.schema),
+              type: getType(parameter.schema, false),
             });
           });
         }
@@ -987,7 +981,6 @@ class ServiceGenerator {
         .sort((a, b) => a.typeName.localeCompare(b.typeName))
     );
   }
-
 
   private genFileFromTemplate(
     fileName: string,
@@ -1024,7 +1017,7 @@ class ServiceGenerator {
 
         const isEnum = 'enum' in schema;
 
-        const sType = getType(schema);
+        const sType = getType(schema, false);
 
         const required = requiredPropKeys
           ? requiredPropKeys.some((key) => key === propName)
@@ -1113,7 +1106,7 @@ class ServiceGenerator {
         enumStr = Array.from(
           new Set(
             enumArray.map((v) =>
-              typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v),
+              typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : getType(v, false),
             ),
           ),
         ).join(' | ');
@@ -1130,7 +1123,7 @@ class ServiceGenerator {
 
   resolveAllOfObject(schemaObject: SchemaObject) {
     const props = (schemaObject.allOf || []).map((item) =>
-      item.$ref ? [{ ...item, type: getType(item).split('/').pop() }] : this.getProps(item),
+      item.$ref ? [{ ...item, type: getType(item, false).split('/').pop() }] : this.getProps(item),
     );
 
     if (schemaObject.properties) {
