@@ -211,7 +211,21 @@ export const stripDot = (str: string) => {
 };
 
 
-export function getInitialValue(type: string, required: boolean): string {
+export function getInitialValue(type: string, required: boolean, schema?: any): string {
+  // 如果 schema 中有默认值，优先使用 schema 中的默认值
+  if (schema && schema.default !== undefined) {
+    if (typeof schema.default === 'string') {
+      return `'${schema.default}'`;
+    } else if (typeof schema.default === 'number') {
+      return schema.default.toString();
+    } else if (typeof schema.default === 'boolean') {
+      return schema.default.toString();
+    } else {
+      return JSON.stringify(schema.default);
+    }
+  }
+
+  // 否则使用类型默认值
   if (type === 'number') {
     return '0';
   } else if (type === 'string') {

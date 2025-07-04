@@ -123,12 +123,6 @@ static async {{ api.functionName }}(
     {%- endif %}
     {%- if api.params and api.hasParams %}
     params: {
-      {%- for query in api.params.query %}
-        {% if query.schema.default -%}
-          // {{query.name | safe}} has a default value: {{ query.schema.default | safe }}
-          '{{query.name | safe}}': '{{query.schema.default | safe}}',
-        {%- endif -%}
-      {%- endfor -%}
       ...{{ 'queryParams' if api.params and api.params.path else 'params' }},
       {%- for query in api.params.query %}
         {%- if query.isComplexType %}

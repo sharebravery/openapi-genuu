@@ -12,6 +12,8 @@ servers-allof
 /dist
 /.vscode
 
+generated
+
 # misc
 .DS_Store
 npm-debug.log*

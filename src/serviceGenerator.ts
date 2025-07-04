@@ -282,6 +282,7 @@ class ServiceGenerator {
   protected openAPIData: OpenAPIObject;
 
   constructor(config: GenerateServiceProps, openAPIData: OpenAPIObject) {
+
     this.finalPath = '';
     this.config = {
       projectName: 'api',
@@ -872,6 +873,7 @@ class ServiceGenerator {
           (item) => (item as ParameterObject)?.in !== 'header',
         );
         const props = [];
+
         if (operationObject.parameters) {
           const comxArrayParams = {};
           operationObject.parameters.forEach((parameter: any) => {
@@ -918,7 +920,7 @@ class ServiceGenerator {
                 name: parameter.name,
                 required: parameter.required,
                 type: pType,
-                initialValue: getInitialValue(pType, parameter.required),
+                initialValue: getInitialValue(pType, parameter.required, parameter.schema),
               });
             }
           });
@@ -962,6 +964,7 @@ class ServiceGenerator {
         .sort((a, b) => a.typeName.localeCompare(b.typeName))
     );
   }
+
 
   private genFileFromTemplate(
     fileName: string,
@@ -1010,7 +1013,7 @@ class ServiceGenerator {
           desc: [schema.title, schema.description].filter((s) => s).join(' '),
           // 如果没有 required 信息，默认全部是非必填
           required: required,
-          initialValue: !required && isEnum ? 'undefined' : (isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required))
+          initialValue: !required && isEnum ? 'undefined' : (isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required, schema))
           // initialValue: isEnum ? 'undefined' : getInitialValue(sType, required),
         };
       })
