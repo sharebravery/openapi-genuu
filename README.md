@@ -86,7 +86,7 @@ generateService({
 ## 配置项说明
 
 | 选项 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | `schemaPath` | `string` | - | OpenAPI 规范文件路径，必填 |
 | `serversPath` | `string` | `'./src/service'` | 生成文件输出路径 |
 | `projectName` | `string` | `'api'` | 项目名称（生成的子目录） |
@@ -103,6 +103,7 @@ generateService({
 | `hook.customFunctionName` | `(data) => string` | - | 自定义函数名生成 |
 | `hook.customTypeName` | `(data) => string` | - | 自定义类型名生成 |
 | `hook.customClassName` | `(tagName) => string` | - | 自定义类名生成 |
+| `ignorePathPrefix` | `string | RegExp` | `/^\/api\/v\d+\//` | 用于配置在生成 API 方法名时需要忽略的路径前缀 |
 
 ## 生成的代码示例
 
@@ -264,3 +265,29 @@ static async QueryDetail(params: QueryDetailParams, options?: RequestOptions): P
 ---
 
 如需自定义参数风格、注释格式或有其它生成需求，欢迎反馈！
+
+## 配置项说明
+
+### ignorePathPrefix
+
+- 类型：`string | RegExp`
+- 作用：用于配置在生成 API 方法名时需要忽略的路径前缀（如 `/api/v1/`）。
+- 默认值：`/^\/api\/v\d+\//`（即自动忽略 `/api/v1/`、`/api/v2/` 等版本号前缀）
+- 用法：
+
+```js
+import { generateService } from './src/index';
+
+generateService({
+  // ...其他配置
+  ignorePathPrefix: /^\/api\/v\d+\//, // 默认配置，忽略 /api/v1/ 这类前缀
+  // ignorePathPrefix: '/api/v1/',      // 也支持字符串
+});
+```
+
+- 生成方法名示例：
+  - `/api/v1/current/user` → `CurrentUser_GET`
+  - `/api/v1/products/{id}` → `ProductsById_GET`
+  - `/api/v2/captcha/image` → `CaptchaImage_GET`
+
+如需自定义其它前缀，只需调整 `ignorePathPrefix` 配置即可。

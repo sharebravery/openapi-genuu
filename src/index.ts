@@ -93,6 +93,11 @@ export type GenerateServiceProps = {
    * 自定义响应类型包装器
    */
   responseWrapper?: string;
+
+  /**
+   * 支持忽略的路径前缀（如 /api/v1/），用于方法名生成
+   */
+  ignorePathPrefix?: string | RegExp;
 };
 
 const converterSwaggerToOpenApi = (swagger: any) => {

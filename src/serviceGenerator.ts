@@ -410,26 +410,32 @@ class ServiceGenerator {
     return c.length > 0 ? c : null;
   };
 
-  public getFuncationName(data: APIDataType) {
-    const { operationId, summary, path, method } = data;
-    const functionName = this.config?.hook?.customFunctionName?.(data) || operationId || summary;
+  public getFuncationName(data: APIDataType, className?: string) {
+    const { operationId, path, method } = data;
+    const functionName = this.config?.hook?.customFunctionName?.(data) || operationId;
+
+    // 支持配置忽略的路径前缀，默认 /api/v\d+/
+    const ignorePrefix = this.config?.ignorePathPrefix || /^\/api\/v\d+\//;
 
     let baseName: string;
     if (functionName) {
       baseName = toPascalCase(functionName);
     } else {
-      const pathSegments = path.split('/').filter(Boolean);
-      const lastSegment = pathSegments[pathSegments.length - 1];
-      const actionMap = {
-        get: 'get',
-        post: 'create',
-        put: 'update',
-        delete: 'delete',
-        patch: 'patch'
-      };
-      const action = actionMap[method.toLowerCase()] || method.toLowerCase();
-      const resource = lastSegment.replace(/[{}]/g, '').replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''));
-      baseName = toPascalCase(`${action}${resource.charAt(0).toUpperCase() + resource.slice(1)}`);
+      let cleanPath = path;
+      if (typeof ignorePrefix === 'string') {
+        if (cleanPath.startsWith(ignorePrefix)) {
+          cleanPath = cleanPath.slice(ignorePrefix.length);
+        }
+      } else if (ignorePrefix instanceof RegExp) {
+        cleanPath = cleanPath.replace(ignorePrefix, '');
+      }
+      const segments = cleanPath.split('/').filter(Boolean);
+      baseName = segments.map(seg => {
+        if (seg.startsWith('{') && seg.endsWith('}')) {
+          return 'By' + toPascalCase(seg.slice(1, -1));
+        }
+        return toPascalCase(seg);
+      }).join('');
     }
     return `${baseName}_${method.toUpperCase()}`;
   }
@@ -468,7 +474,7 @@ class ServiceGenerator {
                 formData = true;
               }
 
-              let functionName = this.getFuncationName(newApi);
+              let functionName = this.getFuncationName(newApi, tag);
 
               if (functionName && tmpFunctionRD[functionName]) {
                 functionName = `${functionName}_${(tmpFunctionRD[functionName] += 1)}`;
@@ -512,33 +518,16 @@ class ServiceGenerator {
                   : params;
 
               // 处理 query 中的复杂对象
-              // const arrayParams = {};
-              if (finalParams && finalParams.query) {
-                finalParams.query = finalParams.query.map((ele) => {
-                  // if (ele.name.includes('[0].')) {
-                  //   const [name, field] = ele.name.split('[0].');
-
-                  //   if (!arrayParams[name]) {
-                  //     arrayParams[name] = {
-                  //       name: name,
-                  //       in: 'query',
-                  //       description: '',
-                  //       required: false,
-                  //       schema: {
-                  //         "$ref": `#/components/schemas/${field.replace('s', '')}`,
-                  //         type: 'array'
-                  //       },
-                  //       isObject: true,
-                  //       type: 'array'
-                  //     }
-                  //   }
-                  // }
-
-                  return {
-                    ...ele,
-                    isComplexType: ele.isObject,
-                  };
-                });
+              if (
+                finalParams &&
+                typeof finalParams === 'object' &&
+                'query' in finalParams &&
+                Array.isArray((finalParams as Record<string, any>).query)
+              ) {
+                (finalParams as Record<string, any>).query = (finalParams as Record<string, any>).query.map((ele: any) => ({
+                  ...ele,
+                  isComplexType: ele.isObject,
+                }));
               }
 
               const getPrefixPath = () => {
