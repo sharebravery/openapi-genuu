@@ -26,6 +26,8 @@ package-lock.json
 *bak
 .vscode
 
+weekly-commits.sh
+
 # visual studio code
 .history
 *.log

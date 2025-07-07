@@ -27,7 +27,7 @@ static async {{ api.functionName }}(
 {{file.title | safe}}: File{{ "[]" if file.multiple }},
 {%- endfor -%}
 {%- endif -%}
-  options?: RequestOptions
+  options?: Models.RequestOptions
 ): Promise<{{api.response.type}}> {
 {%- if api.onlyPathParam %}
   return request<{{api.response.type}}>({
@@ -120,9 +120,4 @@ static async {{ api.functionName }}(
 }
 
 {% endfor -%}
-}
-
-// 请求选项类型
-export interface RequestOptions {
-  [key: string]: any;
 }
