@@ -412,7 +412,7 @@ class ServiceGenerator {
         })
           // 移除重复注释，只保留首个注释块
           .replace(/^(\s*\/\/ THIS FILE IS AUTO-GENERATED\. DO NOT EDIT MANUALLY\.\n\/\/ @ts-ignore\n\/\* eslint-disable \*\/\n)+/, '');
-      require('fs').writeFileSync(join(modelsDir, `${model.typeName}.ts`), content.replace(/\n{3,}/g, '\n\n'));
+      require('fs').writeFileSync(join(modelsDir, `${model.typeName}.ts`), content.replace(/\n{2,}/g, '\n'));
       modelExports.push(`export * from './${model.typeName}';`);
     });
     // 生成 models/index.ts，包含所有模型和 RequestOptions
