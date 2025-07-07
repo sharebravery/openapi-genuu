@@ -400,15 +400,18 @@ class ServiceGenerator {
           .map(dep => `import { ${dep} } from './${dep}';`)
           .join('\n') + '\n\n';
       }
+      const header =
+        '// THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.\n// @ts-ignore\n/* eslint-disable */\n';
       const content =
-        importStr +
+        header +
+        (importStr ? importStr + '\n' : '') +
         nunjucks.renderString(modelTemplate, {
           nullable: this.config.nullable,
           list: [model],
           useInterface: this.config.useInterface,
         })
           // 移除重复注释，只保留首个注释块
-          .replace(/^(\s*\/\/ THIS FILE IS AUTO-GENERATED\. DO NOT EDIT MANUALLY\.\n\/\/ @ts-ignore\n\/\* eslint-disable \*\/\n)+/, '// THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.\n// @ts-ignore\n/* eslint-disable */\n');
+          .replace(/^(\s*\/\/ THIS FILE IS AUTO-GENERATED\. DO NOT EDIT MANUALLY\.\n\/\/ @ts-ignore\n\/\* eslint-disable \*\/\n)+/, '');
       require('fs').writeFileSync(join(modelsDir, `${model.typeName}.ts`), content.replace(/\n{3,}/g, '\n\n'));
       modelExports.push(`export * from './${model.typeName}';`);
     });
