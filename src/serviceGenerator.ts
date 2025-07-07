@@ -421,6 +421,29 @@ class ServiceGenerator {
     // 生成 controller 文件
     const prettierError = [];
     this.getServiceTP().forEach((tp) => {
+      // 自动分析所有用到的模型类型
+      const typeSet = new Set<string>();
+      tp.list.forEach(api => {
+        // 参数类型
+        if (api.typeName) typeSet.add(api.typeName);
+        // body 类型
+        if (api.body && api.body.type) typeSet.add((api.body.type + '').replace(/^Models\./, ''));
+        // response 类型
+        if (api.response && api.response.type) {
+          (api.response.type + '').replace(/Models\.([A-Za-z0-9_]+)/g, (_m, t) => { typeSet.add(t); return ''; });
+        }
+      });
+      // 总是需要 RequestOptions
+      typeSet.add('RequestOptions');
+      // 只 import models 目录下实际存在的类型
+      let modelFiles = [];
+      try {
+        modelFiles = require('fs').readdirSync(join(this.finalPath, 'models'))
+          .filter(f => f.endsWith('.ts') && f !== 'index.ts')
+          .map(f => f.replace(/\.ts$/, ''));
+      } catch { }
+      const filteredTypes = Array.from(typeSet).filter(t => modelFiles.includes(t) || t === 'RequestOptions');
+      const modelImports = `import { ${filteredTypes.sort().join(', ')} } from './models';`;
       const template = 'serviceController';
       const hasError = this.genFileFromTemplate(
         this.getFinalFileName(`${tp.className}.ts`),
@@ -429,6 +452,7 @@ class ServiceGenerator {
           requestImportStatement: this.config.requestImportStatement,
           disableTypeCheck: false,
           className: tp.className,
+          modelImports,
           ...tp,
         },
       );

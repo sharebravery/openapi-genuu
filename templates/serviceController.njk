@@ -2,7 +2,8 @@
 // @ts-ignore
 /* eslint-disable */
 {{ requestImportStatement }}
-import * as Models from './models';
+// 按需 import
+{{ modelImports }}
 
 export class {{className}}Service {
 
@@ -13,24 +14,24 @@ static async {{ api.functionName }}(
   {{api.pathParamNames[0]}}: string,
 {%- elif api.paramMode == 'id+body' %}
   {{api.pathParamNames[0]}}: string,
-  body: {{api.bodyType}},
+  body: {{api.bodyType | replace('Models.', '')}},
 {%- else %}
 {%- if api.params and api.hasParams %}
-  params: Models.{{api.typeName}},
+  params: {{api.typeName}},
 {%- endif -%}
 {%- endif -%}
 {%- if api.body and api.paramMode != 'id+body' and api.paramMode != 'id' -%}
-  body: {% if api.body.propertiesList %}Models.{{api.body.type}}{% else %}{{ api.body.type }}{% endif %},
+  body: {% if api.body.propertiesList %}{{api.body.type | replace('Models.', '')}}{% else %}{{ api.body.type | replace('Models.', '') }}{% endif %},
 {%- endif -%}
 {%- if api.file -%}
 {%- for file in api.file -%}
 {{file.title | safe}}: File{{ "[]" if file.multiple }},
 {%- endfor -%}
 {%- endif -%}
-  options?: Models.RequestOptions
-): Promise<{{api.response.type}}> {
+  options?: RequestOptions
+): Promise<{{api.response.type | replace('Models.', '')}}> {
 {%- if api.onlyPathParam %}
-  return request<{{api.response.type}}>({
+  return request<{{api.response.type | replace('Models.', '')}}>({
     url: `{{ api.path }}`,
     method: '{{ api.method | upper }}',
     ...(options || {}),
@@ -79,7 +80,7 @@ static async {{ api.functionName }}(
   });
 {%- endif %}
 {%- endif %}
-  return request<{{api.response.type}}>({
+  return request<{{api.response.type | replace('Models.', '')}}>({
     url: `{{ api.path }}`,
     method: '{{ api.method | upper }}',
 {%- if api.hasHeader and api.body.mediaType not in ["multipart/form-data", "application/x-www-form-urlencoded"]%}
