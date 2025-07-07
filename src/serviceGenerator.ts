@@ -367,17 +367,60 @@ class ServiceGenerator {
       return self.findIndex(o => o.typeName === obj.typeName) === index;
     });
 
-    // 生成 ts 类型声明 'typings.d.ts'
-    this.genFileFromTemplate(FILE_TYPE === 'model' ? 'models.ts' : 'typings.d.ts', FILE_TYPE, {
-      nullable: this.config.nullable,
-      list: uniqueModelTP,
-      disableTypeCheck: false,
+    // 多文件模式：每个模型单独生成
+    const modelsDir = join(this.finalPath, 'models');
+    if (!existsSync(modelsDir)) {
+      require('fs').mkdirSync(modelsDir, { recursive: true });
+    }
+    const modelTemplate = this.getTemplate('model');
+    const modelExports: string[] = [];
+    uniqueModelTP.forEach(model => {
+      if (!model || !model.typeName) return;
+      // 自动分析依赖类型，生成 import 语句
+      const deps = new Set<string>();
+      (model.props || []).forEach(propArr => {
+        (propArr || []).forEach(prop => {
+          // 只处理 Models.XXX 或直接 XXX
+          const typeMatches = (prop.type || '').match(/\b([A-Z][A-Za-z0-9_]+)/g);
+          if (typeMatches) {
+            typeMatches.forEach(tn => {
+              if (
+                tn !== model.typeName &&
+                !['string', 'number', 'boolean', 'Date', 'any', 'unknown', 'Record'].includes(tn)
+              ) {
+                deps.add(tn);
+              }
+            });
+          }
+        });
+      });
+      let importStr = '';
+      if (deps.size > 0) {
+        importStr = Array.from(deps)
+          .map(dep => `import { ${dep} } from './${dep}';`)
+          .join('\n') + '\n\n';
+      }
+      const content =
+        importStr +
+        nunjucks.renderString(modelTemplate, {
+          nullable: this.config.nullable,
+          list: [model],
+          useInterface: this.config.useInterface,
+        })
+          // 移除重复注释，只保留首个注释块
+          .replace(/^(\s*\/\/ THIS FILE IS AUTO-GENERATED\. DO NOT EDIT MANUALLY\.\n\/\/ @ts-ignore\n\/\* eslint-disable \*\/\n)+/, '// THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.\n// @ts-ignore\n/* eslint-disable */\n');
+      require('fs').writeFileSync(join(modelsDir, `${model.typeName}.ts`), content.replace(/\n{3,}/g, '\n\n'));
+      modelExports.push(`export * from './${model.typeName}';`);
     });
+    // 生成 models/index.ts，包含所有模型和 RequestOptions
+    require('fs').writeFileSync(
+      join(modelsDir, 'index.ts'),
+      `${modelExports.join('\n')}\n\n// 请求选项类型\nexport interface RequestOptions {\n  [key: string]: any;\n}\n`
+    );
+
     // 生成 controller 文件
     const prettierError = [];
-    // 生成 service 统计
     this.getServiceTP().forEach((tp) => {
-      // 根据当前数据源类型选择恰当的 controller 模版
       const template = 'serviceController';
       const hasError = this.genFileFromTemplate(
         this.getFinalFileName(`${tp.className}.ts`),
@@ -401,7 +444,6 @@ class ServiceGenerator {
       disableTypeCheck: false,
     });
 
-    // 打印日志
     Log(`✅ 成功生成 service 文件`);
   }
 
