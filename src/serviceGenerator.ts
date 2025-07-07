@@ -961,6 +961,9 @@ class ServiceGenerator {
 
           const getDefinesType = () => {
             if (result.type) {
+              if ((defines[typeName] as SchemaObject).type === 'object' && !result.props) {
+                return 'Record<string, unknown>';
+              }
               return (defines[typeName] as SchemaObject).type === 'object' || result.type;
             }
             return 'Record<string, unknown>';
@@ -1156,17 +1159,25 @@ class ServiceGenerator {
           (schemaObject.properties && schemaObject.properties[propName]) || DEFAULT_SCHEMA;
 
         const isEnum = 'enum' in schema;
-
         const sType = getType(schema, false);
-
         const required = requiredPropKeys
           ? requiredPropKeys.some((key) => key === propName)
           : false;
+
+        // 拼接注释 comment 字段
+        const descArr = [schema.title, schema.description].filter((s) => s);
+        if (schema.maxLength !== undefined) descArr.push(`maxLength: ${schema.maxLength}`);
+        if (schema.format) descArr.push(`format: ${schema.format}`);
+        if (schema.default !== undefined) descArr.push(`default: ${JSON.stringify(schema.default)}`);
+        if (Array.isArray(schema.enum)) descArr.push(`enum: ${schema.enum.map((v) => JSON.stringify(v)).join(', ')}`);
+        const comment = descArr.length ? descArr.join('; ') : undefined;
+
         return {
           ...schema,
           name: propName,
           type: sType,
           desc: [schema.title, schema.description].filter((s) => s).join(' '),
+          comment,
           // 如果没有 required 信息，默认全部是非必填
           required: required,
           initialValue: !required && isEnum ? 'undefined' : (isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required, schema)),

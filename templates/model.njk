@@ -19,8 +19,8 @@
         {%- endif %}
       {%- endif %}
         {%- for p in prop %}
-          {%- if p.desc %}
-            /** {{ p.desc }} */
+          {%- if p.comment %}
+            /** {{ p.comment }} */
           {%- endif %}
           {%- if p["$ref"] and not p.name %}
             // {{ p.$ref }}
