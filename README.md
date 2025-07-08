@@ -1,59 +1,43 @@
 # OpenAPI TypeScript Service Generator
 
-一个基于 OpenAPI/Swagger 规范生成 TypeScript 代码的工具。
+一个基于 OpenAPI/Swagger 规范生成 TypeScript 代码的工具，支持生成类型安全的 API 服务、数据模型和 Mock 数据。
 
-## 特性
+## ✨ 特性
 
-- 🚀 基于 OpenAPI 3.0 规范
-- 🎯 严格的类型检查
-- 📦 支持多种输出格式
-- 🏷️ 所有生成文件带自动生成注释
-- 🧩 方法名为小驼峰+大写 method 后缀（如 getUserById_GET）
-- **参数分支智能生成**：根据 OpenAPI path/query/body/file 参数结构，自动生成最简洁、类型安全的 service 方法签名。
-- **注释完整还原**：所有接口注释优先使用 OpenAPI 的 summary/description 字段，保证文档准确。
-- **严格适配 OpenAPI 规范**：支持 path/query/body/file/header 等主流参数类型，兼容绝大多数后端。
-- **模板健壮、无未定义变量**：所有参数分支和变量名都自动适配，无论参数组合如何都不会生成语法错误。
+- 🚀 **基于 OpenAPI 3.0 规范**：支持 OpenAPI 3.0 和 Swagger 2.0 规范
+- 🎯 **严格的类型检查**：生成完整的 TypeScript 类型定义
+- 📦 **多种输出格式**：支持 class 和 interface 两种类型生成方式
+- 🏷️ **智能参数分支**：根据 path/query/body/file 参数自动生成最优方法签名
+- 📝 **注释完整还原**：优先使用 OpenAPI 的 summary/description 字段
+- 🎭 **Mock 数据生成**：基于 OpenAPI 规范自动生成 Mock 数据
+- 🔧 **高度可配置**：支持自定义模板、命名规则、响应包装器等
+- 🛡️ **健壮性保证**：模板拼接严谨，避免语法错误
 
-## 代码风格与最佳实践
-
-- 所有类型、接口、类均为大驼峰命名（PascalCase）
-- 所有 service 方法名为小驼峰+大写 method 后缀，避免重名
-- 所有生成文件顶部有自动生成注释，提示勿手动修改
-- 支持类型 re-export，便于统一引用
-- 模板拼接更严谨，避免多余括号、逗号
-
-## 安装
+## 📦 安装
 
 ```bash
 npm install openapi-genuu
 ```
 
-## 使用方法
+## 🚀 快速开始
 
-### 基本配置
-
-#### 一、
+### 基础用法
 
 ```typescript
 import { generateService } from 'openapi-genuu';
 
-generateService({
-  schemaPath: `http://localhost:8010/swagger/doc.json`,
-  serversPath: './generated/orka-new',
+// 从远程地址生成
+await generateService({
+  schemaPath: 'http://localhost:8010/swagger/doc.json',
+  serversPath: './generated/api',
   strictTypes: true,
 });
-```
 
-#### 二、
-
-```typescript
-import { generateService } from 'openapi-genuu';
-
-generateService({
+// 从本地文件生成
+await generateService({
   schemaPath: './swagger.json',
   serversPath: './src/api',
   projectName: 'api',
-  namespace: 'API',
   requestImportStatement: "import { request } from 'umi';",
 });
 ```
@@ -63,18 +47,19 @@ generateService({
 ```typescript
 import { generateService } from 'openapi-genuu';
 
-generateService({
+await generateService({
   schemaPath: './swagger.json',
   serversPath: './src/api',
   projectName: 'api',
-  namespace: 'API',
   requestImportStatement: "import { request } from 'umi';",
-  strictTypes: true, // 是否启用严格类型，默认 false
-  useInterface: true, // 是否使用 interface 生成类型，默认 false（参数类型仍为 class）
-  responseWrapper: 'ApiResponse', // 自定义响应类型包装器，默认 undefined
-  enumStyle: 'string-literal', // 枚举样式，'string-literal' | 'enum'，默认 'string-literal'
-  dataFields: ['result', 'data', 'res'], // 响应数据字段，默认 undefined
-  nullable: false, // 可选字段是否用 null，默认 false
+  strictTypes: true,
+  useInterface: true,
+  responseWrapper: 'ApiResponse',
+  enumStyle: 'string-literal',
+  dataFields: ['result', 'data', 'res'],
+  nullable: false,
+  mockFolder: './mocks',
+  ignorePathPrefix: /^\/api\/v\d+\//,
   hook: {
     customFunctionName: (data) => data.operationId || data.summary,
     customTypeName: (data) => `${data.operationId}Params`,
@@ -83,33 +68,50 @@ generateService({
 });
 ```
 
-## 配置项说明
+## ⚙️ 配置项
 
-| 选项 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `schemaPath` | `string` | - | OpenAPI 规范文件路径，必填 |
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `schemaPath` | `string` | - | OpenAPI 规范文件路径（必填） |
 | `serversPath` | `string` | `'./src/service'` | 生成文件输出路径 |
 | `projectName` | `string` | `'api'` | 项目名称（生成的子目录） |
 | `namespace` | `string` | `'API'` | 命名空间名称 |
-| `requestImportStatement` | `string` | - | 请求库导入语句（如 umi/axios） |
-| `strictTypes` | `boolean` | `false` | 是否启用严格类型（用 unknown 替代 any） |
-| `useInterface` | `boolean` | `false` | 是否用 interface 生成类型（参数类型仍为 class） |
-| `responseWrapper` | `string` | - | 自定义响应类型包装器（如 ApiResponse） |
+| `requestImportStatement` | `string` | `"import { request } from 'umi'"` | 请求库导入语句 |
+| `requestLibPath` | `string` | - | 请求库路径（与 requestImportStatement 二选一） |
+| `strictTypes` | `boolean` | `false` | 启用严格类型（用 unknown 替代 any） |
+| `useInterface` | `boolean` | `false` | 使用 interface 生成数据模型 |
+| `responseWrapper` | `string` | - | 自定义响应类型包装器 |
 | `enumStyle` | `'string-literal' \| 'enum'` | `'string-literal'` | 枚举样式 |
 | `dataFields` | `string[]` | - | 响应数据字段（如 ['data', 'result']） |
-| `nullable` | `boolean` | `false` | 可选字段是否用 null |
-| `mockFolder` | `string` | - | mock 目录 |
-| `hook` | `object` | - | 钩子函数，自定义命名等 |
-| `hook.customFunctionName` | `(data) => string` | - | 自定义函数名生成 |
-| `hook.customTypeName` | `(data) => string` | - | 自定义类型名生成 |
-| `hook.customClassName` | `(tagName) => string` | - | 自定义类名生成 |
-| `ignorePathPrefix` | `string | RegExp` | `/^\/api\/v\d+\//` | 用于配置在生成 API 方法名时需要忽略的路径前缀 |
+| `nullable` | `boolean` | `false` | 可选字段是否使用 null |
+| `mockFolder` | `string` | - | Mock 数据生成目录 |
+| `templatesFolder` | `string` | `'./templates'` | 自定义模板目录 |
+| `apiPrefix` | `string \| function` | - | API 路径前缀 |
+| `ignorePathPrefix` | `string \| RegExp` | `/^\/api\/v\d+\//` | 忽略的路径前缀 |
+| `hook` | `object` | - | 自定义钩子函数 |
+| `hook.customFunctionName` | `function` | - | 自定义函数名生成 |
+| `hook.customTypeName` | `function` | - | 自定义类型名生成 |
+| `hook.customClassName` | `function` | - | 自定义类名生成 |
 
-## 生成的代码示例
+## 📁 生成的文件结构
 
-### 参数类型（使用 class）
+```
+src/api/
+├── models/
+│   ├── index.ts          # 所有模型类型导出
+│   ├── User.ts           # 用户模型
+│   └── Order.ts          # 订单模型
+├── UserService.ts        # 用户相关 API
+├── OrderService.ts       # 订单相关 API
+└── index.ts              # 服务导出文件
+```
+
+## 📝 生成的代码示例
+
+### 数据模型（useInterface: false）
 
 ```typescript
+// THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
 export class GetUsersParams {
   /** 页码 */
   page: number = 1;
@@ -122,9 +124,10 @@ export class GetUsersParams {
 }
 ```
 
-### 数据模型（使用 interface）
+### 数据模型（useInterface: true）
 
 ```typescript
+// THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
 export interface User {
   /** 用户ID */
   id: string;
@@ -140,154 +143,199 @@ export interface User {
 ### Service 方法
 
 ```typescript
-export class UserService {
-  /** 获取用户列表 */
-  static async getUsers(
-    params: API.GetUsersParams,
-    options?: RequestOptions,
-  ): Promise<API.UserListResponse> {
-    return request<API.UserListResponse>({
-      url: '/api/users',
-      method: 'GET',
-      params: {
-        ...params,
-      },
-      ...(options || {}),
-    });
-  }
-}
-```
-
-## 默认值说明
-
-- `strictTypes`：默认 `false`，开启后所有 any 类型会变为 unknown。
-- `useInterface`：默认 `false`，开启后数据模型用 interface，参数类型仍为 class（带默认值）。
-- `enumStyle`：默认 `'string-literal'`，可选 `'enum'`。
-- `nullable`：默认 `false`，可选字段不会用 null。
-- `projectName`：默认 `'api'`。
-- `serversPath`：默认 `'./src/service'`。
-- `namespace`：默认 `'API'`。
-
-## 许可证
-
-MIT
-
-## 示例
-
-```typescript
 // THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
-export class GetUserByIdParams {
-  id: string;
-}
-
-export interface User {
-  id: string;
-  name: string;
-}
-
-export type UserType = User;
+import { GetUsersParams, User, RequestOptions } from './models';
 
 export class UserService {
-  /** 获取用户信息 GET /api/v1/user/{id} */
-  static async getUserById_GET(
-    params: API.GetUserByIdParams,
-    options?: RequestOptions,
-  ): Promise<API.User> {
-    return request<API.User>({
-      url: `/api/v1/user/${params.id}`,
+  /** 获取用户列表 GET /api/users */
+  static async getUsers(params: API.GetUsersParams, options?: RequestOptions): Promise<API.User[]> {
+    return request<API.User[]>({
+      url: '/api/users',
       method: 'GET',
       params: { ...params },
       ...(options || {}),
     });
   }
+
+  /** 获取用户详情 GET /api/users/{id} */
+  static async getUserById_GET(id: string, options?: RequestOptions): Promise<API.User> {
+    return request<API.User>({
+      url: `/api/users/${id}`,
+      method: 'GET',
+      ...(options || {}),
+    });
+  }
+
+  /** 创建用户 POST /api/users */
+  static async createUser_POST(
+    body: API.CreateUserBody,
+    options?: RequestOptions,
+  ): Promise<API.User> {
+    return request<API.User>({
+      url: '/api/users',
+      method: 'POST',
+      data: body,
+      ...(options || {}),
+    });
+  }
 }
 ```
 
-## 其他说明
+## 🎭 Mock 数据生成
 
-- 生成的所有类型、接口、类均为大驼峰命名，符合 TypeScript 社区规范。
-- 所有 service 方法名均为小驼峰+大写 method 后缀（如 getUserById_GET、createUser_POST）。
-- 所有生成文件顶部有自动生成注释。
-- 支持类型 re-export，便于业务层统一引用。
-- 代码风格和模板拼接已做严格处理，避免语法错误。
+当配置 `mockFolder` 时，会自动生成基于 OpenAPI 规范的 Mock 数据：
 
-## 参数分支生成规则
-
-| path 参数 | query 参数 | body 参数 | file 参数 | 生成方法参数 | 示例 |
-| --- | --- | --- | --- | --- | --- |
-| 1 个 | 无 | 无 | 无 | id: string | `getById(id: string, ...)` |
-| 1 个 | 无 | 有 | 无 | id: string, body: ... | `updateById(id: string, body, ...)` |
-| 1 个 | 有 | 无/有 | 无/有 | params: Models.Xxx | `getList(params, ...)` |
-| 多个 | 任意 | 任意 | 任意 | params: Models.Xxx | `batchUpdate(params, ...)` |
-| 无 | 有/无 | 有/无 | 任意 | params: Models.Xxx | `create(params, ...)` |
-
-- **只有 path 参数**：`id: string`
-- **只有 path+body**：`id: string, body: ...`
-- **其它情况（有 query/file/多个 path/无 path）**：`params: Models.XXXParams`
-
-## 注释生成规则
-
-- 优先用 OpenAPI 的 `summary` 字段
-- 没有 `summary` 时用 `description`
-- 都没有时用 `operationId`
-- 注释自动带上 HTTP 方法和路径
-
-**示例：**
-
-```ts
-/** Get captcha ID GET /api/v1/captcha/id */
-static async GetCaptchaID_GET(options?: RequestOptions): Promise<...> { ... }
-```
-
-## 适配性说明
-
-- 严格遵循 OpenAPI 3.0/Swagger 2.0 规范
-- 支持 path/query/body/file/header 等主流参数类型
-- 兼容绝大多数主流后端（Java/Spring、Go、Node、Python 等）生成的 OpenAPI 文档
-- 模板和生成逻辑分工清晰，易于扩展和自定义
-
-## 典型生成示例
-
-```ts
-// 只有 path 参数
-static async GetById(id: string, options?: RequestOptions): Promise<...> { ... }
-
-// 只有 path+body
-static async UpdateById(id: string, body: UpdateForm, options?: RequestOptions): Promise<...> { ... }
-
-// 只有 query 参数
-static async QueryList(params: QueryListParams, options?: RequestOptions): Promise<...> { ... }
-
-// path+query
-static async QueryDetail(params: QueryDetailParams, options?: RequestOptions): Promise<...> { ... }
-```
-
----
-
-如需自定义参数风格、注释格式或有其它生成需求，欢迎反馈！
-
-## 配置项说明
-
-### ignorePathPrefix
-
-- 类型：`string | RegExp`
-- 作用：用于配置在生成 API 方法名时需要忽略的路径前缀（如 `/api/v1/`）。
-- 默认值：`/^\/api\/v\d+\//`（即自动忽略 `/api/v1/`、`/api/v2/` 等版本号前缀）
-- 用法：
-
-```js
-import { generateService } from './src/index';
-
-generateService({
-  // ...其他配置
-  ignorePathPrefix: /^\/api\/v\d+\//, // 默认配置，忽略 /api/v1/ 这类前缀
-  // ignorePathPrefix: '/api/v1/',      // 也支持字符串
+```typescript
+// 配置 Mock 生成
+await generateService({
+  schemaPath: './swagger.json',
+  mockFolder: './mocks',
+  // ... 其他配置
 });
 ```
 
-- 生成方法名示例：
-  - `/api/v1/current/user` → `CurrentUser_GET`
-  - `/api/v1/products/{id}` → `ProductsById_GET`
-  - `/api/v2/captcha/image` → `CaptchaImage_GET`
+生成的 Mock 文件示例：
 
-如需自定义其它前缀，只需调整 `ignorePathPrefix` 配置即可。
+```typescript
+// @ts-ignore
+import { Request, Response } from 'express';
+
+export default {
+  'GET /api/users': (req: Request, res: Response) => {
+    res.status(200).send([
+      {
+        id: '1',
+        username: '张三',
+        email: 'zhangsan@example.com',
+        createdAt: '2024-01-01T00:00:00.000Z',
+      },
+    ]);
+  },
+  'POST /api/users': (req: Request, res: Response) => {
+    res.status(200).send({
+      id: '2',
+      username: '李四',
+      email: 'lisi@example.com',
+      createdAt: '2024-01-01T00:00:00.000Z',
+    });
+  },
+};
+```
+
+## 🔧 参数分支生成规则
+
+| path 参数 | query 参数 | body 参数 | file 参数 | 生成方法参数 | 示例 |
+| --- | --- | --- | --- | --- | --- |
+| 1 个 | 无 | 无 | 无 | `id: string` | `getUserById_GET(id: string, ...)` |
+| 1 个 | 无 | 有 | 无 | `id: string, body: ...` | `updateUser_PUT(id: string, body, ...)` |
+| 1 个 | 有 | 无/有 | 无/有 | `params: Models.XXX` | `getUsers_GET(params, ...)` |
+| 多个 | 任意 | 任意 | 任意 | `params: Models.XXX` | `batchUpdate_PUT(params, ...)` |
+| 无 | 有/无 | 有/无 | 任意 | `params: Models.XXX` | `createUser_POST(params, ...)` |
+
+## 📝 注释生成规则
+
+- **优先级**：`summary` > `description` > `operationId`
+- **格式**：`/** 接口描述 HTTP方法 路径 */`
+- **示例**：`/** 获取用户信息 GET /api/users/{id} */`
+
+## 🎯 方法命名规则
+
+- **格式**：`小驼峰 + 大写方法后缀`
+- **示例**：`getUserById_GET`、`createUser_POST`、`updateUser_PUT`
+- **路径前缀忽略**：默认忽略 `/api/v1/` 等版本前缀
+- **自定义**：可通过 `ignorePathPrefix` 配置忽略的前缀
+
+## 🔄 类型生成规则
+
+### 基础类型映射
+
+| OpenAPI 类型 | TypeScript 类型           |
+| ------------ | ------------------------- |
+| `string`     | `string`                  |
+| `integer`    | `number`                  |
+| `number`     | `number`                  |
+| `boolean`    | `boolean`                 |
+| `array`      | `T[]`                     |
+| `object`     | `Record<string, unknown>` |
+| `date-time`  | `Date`                    |
+
+### 枚举类型
+
+```typescript
+// enumStyle: 'string-literal'
+type Status = 'active' | 'inactive' | 'pending';
+
+// enumStyle: 'enum'
+enum Status {
+  Active = 'active',
+  Inactive = 'inactive',
+  Pending = 'pending',
+}
+```
+
+## 🛠️ 自定义配置
+
+### 自定义模板
+
+```typescript
+await generateService({
+  // ... 其他配置
+  templatesFolder: './custom-templates',
+});
+```
+
+### 自定义命名规则
+
+```typescript
+await generateService({
+  // ... 其他配置
+  hook: {
+    customFunctionName: (data) => data.operationId || data.summary,
+    customTypeName: (data) => `${data.operationId}Params`,
+    customClassName: (tagName) => `${tagName}Service`,
+  },
+});
+```
+
+### 自定义 API 前缀
+
+```typescript
+await generateService({
+  // ... 其他配置
+  apiPrefix: '/api/v1',
+  // 或使用函数
+  apiPrefix: ({ path, method, namespace, functionName }) => {
+    return `/api/v1${path}`;
+  },
+});
+```
+
+## 🔧 常见问题
+
+### Q: 如何处理复杂的 OpenAPI 规范？
+
+A: 工具支持 OpenAPI 3.0 和 Swagger 2.0，会自动转换格式。对于复杂的嵌套类型，会生成对应的 TypeScript 类型。
+
+### Q: 如何自定义生成的代码风格？
+
+A: 可以通过 `templatesFolder` 配置自定义模板，或使用 `hook` 函数自定义命名规则。
+
+### Q: Mock 数据如何生成？
+
+A: 配置 `mockFolder` 后，会基于 OpenAPI 的 `example` 字段和字段名智能生成 Mock 数据。
+
+### Q: 如何处理文件上传？
+
+A: 工具会自动识别 `multipart/form-data` 类型的请求，生成对应的文件上传方法。
+
+## 📄 License
+
+MIT
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+---
+
+**注意**：生成的文件包含自动生成注释，请勿手动修改，重新生成时会覆盖。
