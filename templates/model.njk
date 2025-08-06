@@ -19,7 +19,7 @@ export class {{ type.typeName | safe }} {
 {% if p.comment %}    /** {{ p.comment }} */
 {% endif %}{% if p["$ref"] and not p.name %}    // {{ p.$ref }}
     {{ p.type | safe }}
-{% else %}    {{ p.name }}{{ '?' if not p.required }}: {% if p.isEnum and enumStyle == 'enum' and p.enum %}{{ p.enum | map('tojson') | join(' | ') | replace('"', "'") }}{% else %}{{ p.type | safe }}{% endif %}{% if not useInterface and p.initialValue != null and not (p.isEnum and enumStyle == 'enum' and p.enum) %} = {{ p.initialValue }}{% endif %};
+{% else %}    {{ p.name }}{{ '?' if not p.required }}: {% if p.isEnum and enumStyle == 'enum' and p.enum %}{{ p.enum | map('tojson') | join(' | ') | replace('"', "'") }}{% else %}{{ p.type | safe }}{% endif %}{% if not useInterface and p.type !== 'string' and p.initialValue != null and not (p.isEnum and enumStyle == 'enum' and p.enum) %} = {{ p.initialValue }}{% endif %};
 {% endif %}
 {% endfor %}
 {% endfor %}

@@ -8,7 +8,6 @@ import type { SchemaObject } from 'openapi3-ts';
 import converter from 'swagger2openapi';
 import Log from './log';
 import { mockGenerator } from './mockGenerator';
-import { sanitizeSchema } from './sanitizer';
 import { ServiceGenerator } from './serviceGenerator';
 
 const getImportStatement = (requestLibPath: string) => {
@@ -154,10 +153,7 @@ export const generateService = async ({
 }: GenerateServiceProps) => {
   const openAPI = await getOpenAPIConfig(schemaPath);
 
-  // 清理 schema 中的 HTML 实体
-  const sanitizedOpenAPI = sanitizeSchema(openAPI);
-
-  let patchedOpenAPI = sanitizedOpenAPI;
+  let patchedOpenAPI = openAPI;
 
   const requestImportStatement = getImportStatement(requestLibPath);
   const serviceGenerator = new ServiceGenerator(
