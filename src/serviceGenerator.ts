@@ -20,6 +20,7 @@ import pinyin from 'tiny-pinyin';
 import type { GenerateServiceProps } from './index';
 import Log from './log';
 import { getInitialValue, stripDot, writeFile } from './util';
+import { sanitizeSchema } from './sanitizer';
 
 const BASE_DIRS = ['service', 'services'];
 
@@ -1184,6 +1185,8 @@ class ServiceGenerator {
       // 设置输出不转义
       nunjucks.configure({
         autoescape: false,
+        trimBlocks: true,
+        lstripBlocks: true,
       });
 
       return writeFile(this.finalPath, fileName, nunjucks.renderString(template, params));

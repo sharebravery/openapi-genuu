@@ -50,3 +50,4 @@ test/file-servers/
 test/servers-allof/
 file-servers
 .generated*
+generated-test

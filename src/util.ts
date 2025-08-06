@@ -43,6 +43,14 @@ export const prettierFile = (content: string): [string, boolean] => {
 export const writeFile = (folderPath: string, fileName: string, content: string) => {
   const filePath = path.join(folderPath, fileName);
   mkdir(path.dirname(filePath));
+
+  // 清理 HTML 实体
+  content = content.replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+
   const [prettierContent, hasError] = prettierFile(content);
   fs.writeFileSync(filePath, prettierContent, {
     encoding: 'utf8',
