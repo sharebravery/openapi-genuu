@@ -1,6 +1,6 @@
 {
   "name": "openapi-genuu",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "根据 OpenApi 文档 生成对应模型以及 request 请求代码",
   "repository": {
     "type": "git",
