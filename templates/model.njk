@@ -1,8 +1,13 @@
 {% for type in list %}
+{# 1. 先生成所有字段枚举 #}
+{# 不再生成 export enum #}
+
+{# 2. 生成 class/interface #}
 {% if type.props.length %}
+{% if type.description %}/** {{ type.description }} */
+{% endif %}
 {% if type.isEnum %}
-export enum {{ type.typeName | safe }} {
-}
+export type {{ type.typeName | safe }} = {{ type.type }};
 {% else %}
 {% if useInterface %}
 export interface {{ type.typeName | safe }} {
@@ -11,12 +16,10 @@ export class {{ type.typeName | safe }} {
 {% endif %}
 {% for prop in type.props %}
 {% for p in prop %}
-{% if p.comment %}    /** {{ p.comment }} */{% endif %}
-{% if p["$ref"] and not p.name %}    // {{ p.$ref }}
-    {{ p.type | safe }}{% else %}
-{% if nullable %}    {{ p.name }}: {{ p.type | safe }}{{'' if p.required else '| null'}};{% else %}
-{% if useInterface %}    {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }};{% else %}    {{ p.name }}{{ '' if p.required else '?' }}: {{ p.type | safe }}{% if p.initialValue %} = {{ p.initialValue | trim | replace('= ', '') }}{% endif %};{% endif %}
-{% endif %}
+{% if p.comment %}    /** {{ p.comment }} */
+{% endif %}{% if p["$ref"] and not p.name %}    // {{ p.$ref }}
+    {{ p.type | safe }}
+{% else %}    {{ p.name }}{{ '?' if not p.required }}: {% if p.isEnum and enumStyle == 'enum' and p.enum %}{{ p.enum | map('tojson') | join(' | ') | replace('"', "'") }}{% else %}{{ p.type | safe }}{% endif %}{% if not useInterface and p.initialValue != null and not (p.isEnum and enumStyle == 'enum' and p.enum) %} = {{ p.initialValue }}{% endif %};
 {% endif %}
 {% endfor %}
 {% endfor %}
@@ -24,7 +27,7 @@ export class {{ type.typeName | safe }} {
 {% endif %}
 {% else %}
 {% if type.isEnum %}
-export enum {{ type.typeName | safe }} {{ type.type }};
+export type {{ type.typeName | safe }} = {{ type.type }};
 {% else %}
 export type {{ type.typeName | safe }} = {{ type.type }};
 {% endif %}

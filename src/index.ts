@@ -4,6 +4,7 @@ import http from 'http';
 import https from 'https';
 import fetch from 'node-fetch';
 import type { OperationObject } from 'openapi3-ts';
+import type { SchemaObject } from 'openapi3-ts';
 import converter from 'swagger2openapi';
 import Log from './log';
 import { mockGenerator } from './mockGenerator';
@@ -30,7 +31,6 @@ export type GenerateServiceProps = {
   | ((params: {
     path: string;
     method: string;
-    namespace: string;
     functionName: string;
     autoExclude?: boolean;
   }) => string);
@@ -55,7 +55,6 @@ export type GenerateServiceProps = {
     /** 自定义类名 */
     customClassName?: (tagName: string) => string;
   };
-  namespace?: string;
 
   /**
    * 默认为false，true时使用null代替可选
@@ -153,22 +152,24 @@ export const generateService = async ({
   ...rest
 }: GenerateServiceProps) => {
   const openAPI = await getOpenAPIConfig(schemaPath);
+
+  let patchedOpenAPI = openAPI;
+
   const requestImportStatement = getImportStatement(requestLibPath);
   const serviceGenerator = new ServiceGenerator(
     {
-      namespace: 'Models',
       requestImportStatement,
       enumStyle: 'enum',
       nullable,
       ...rest,
     },
-    openAPI,
+    patchedOpenAPI,
   );
   serviceGenerator.genFile();
 
   if (mockFolder) {
     await mockGenerator({
-      openAPI,
+      openAPI: patchedOpenAPI,
       mockFolder: mockFolder || './mocks/',
     });
   }

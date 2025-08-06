@@ -211,35 +211,38 @@ export const stripDot = (str: string) => {
 };
 
 export function getInitialValue(type: string, required: boolean, schema?: any): string {
-  // 可选字段不赋默认值
-  if (!required) return '';
   // schema.default 优先
   if (schema && schema.default !== undefined) {
-    if (typeof schema.default === 'string') return ` = '${schema.default}'`;
-    if (typeof schema.default === 'number' || typeof schema.default === 'boolean') return ` = ${schema.default}`;
-    if (Array.isArray(schema.default)) return ' = []';
-    return ` = ${JSON.stringify(schema.default)}`;
+    if (typeof schema.default === 'string') return `'${schema.default}'`;
+    if (typeof schema.default === 'number' || typeof schema.default === 'boolean') return `${schema.default}`;
+    if (Array.isArray(schema.default)) return '[]';
+    return `${JSON.stringify(schema.default)}`;
   }
+
+  // 必填字段才有默认值
+  if (!required) return null;
+
+
   // union/enum 类型，取第一个值
   if (/^".*"(\s*\|\s*".*")+$/.test(type)) {
     const first = type.match(/"([^"]+)"/);
     if (first && first[1]) {
-      return ` = "${first[1]}"`;
+      return `"${first[1]}"`;
     }
-    return '';
+    return null;
   }
   // 数组类型
-  if (type.trim().endsWith('[]') || /^Array<.*>$/.test(type.trim())) return ' = []';
+  if (type.trim().endsWith('[]') || /^Array<.*>$/.test(type.trim())) return '[]';
   // number 类型
-  if (type.trim() === 'number') return ' = 0';
+  if (type.trim() === 'number' || type.trim() === 'integer') return '0';
   // string 类型
-  if (type.trim() === 'string') return " = ''";
+  if (type.trim() === 'string') return "''";
   // boolean 类型
-  if (type.trim() === 'boolean') return ' = false';
+  if (type.trim() === 'boolean') return 'false';
   // 对象类型
-  if (type.trim() === 'object' || type.trim().startsWith('{')) return ' = {}';
+  if (type.trim() === 'object' || type.trim().startsWith('{')) return '{}';
   // 兜底：如果类型名里有数字（如 number1），只返回类型默认值
-  if (/^number\d+$/.test(type.trim())) return ' = 0';
-  if (/^string\d+$/.test(type.trim())) return " = ''";
-  return '';
+  if (/^number\d+$/.test(type.trim())) return '0';
+  if (/^string\d+$/.test(type.trim())) return "''";
+  return null;
 }

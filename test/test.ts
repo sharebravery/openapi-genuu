@@ -16,18 +16,19 @@ const gen = async () => {
 
   await openAPI.generateService({
     schemaPath: `${__dirname}/test-allof-api.json`,
-    serversPath: './servers-allof',
+    serversPath: './generated/servers-allof',
   });
 
   await openAPI.generateService({
     schemaPath: `${__dirname}/example-files/swagger-get-method-params-convert-obj.json`,
-    serversPath: './servers',
+    serversPath: './generated/servers',
   });
 
   await openAPI.generateService({
     schemaPath: `http://localhost:8010/swagger/doc.json`,
     serversPath: './generated/orka-new',
     strictTypes: true,
+    allResponseFieldsRequired: true
   });
 
 

@@ -171,7 +171,11 @@ const getType = (schemaObject: SchemaObject | undefined, addModelsPrefix: boolea
       return `[${arrayItemType}]`;
     }
     const arrayType = getType(items, addModelsPrefix);
-    return arrayType.includes(' | ') ? `(${arrayType})[]` : `${arrayType}[]`;
+    // 仅在联合类型时加括号
+    if (arrayType.includes(' | ') || arrayType.includes(' & ')) {
+      return `(${arrayType})[]`;
+    }
+    return `${arrayType}[]`;
   }
 
   if (schemaObject && schemaObject.enum && !addModelsPrefix) {
@@ -479,7 +483,7 @@ class ServiceGenerator {
     return c.length > 0 ? c : null;
   };
 
-  public getFuncationName(data: APIDataType, className?: string) {
+  public getFuncationName(data: APIDataType) {
     const { operationId, path, method } = data;
     const functionName = this.config?.hook?.customFunctionName?.(data) || operationId;
 
@@ -543,7 +547,7 @@ class ServiceGenerator {
                 formData = true;
               }
 
-              let functionName = this.getFuncationName(newApi, tag);
+              let functionName = this.getFuncationName(newApi);
 
               if (functionName && tmpFunctionRD[functionName]) {
                 functionName = `${functionName}_${(tmpFunctionRD[functionName] += 1)}`;
@@ -609,7 +613,6 @@ class ServiceGenerator {
                     ? `${this.config.apiPrefix({
                       path: formattedPath,
                       method: newApi.method,
-                      namespace: tag,
                       functionName,
                     })}`.trim()
                     : this.config.apiPrefix.trim();
@@ -760,6 +763,29 @@ class ServiceGenerator {
     if (mediaType === '*/*') {
       mediaType = '';
     }
+
+    // 如果是 multipart/form-data，生成更具体的类型
+    const resolvedSchema = this.resolveRefObject(schema) as SchemaObject;
+    if (mediaType === 'multipart/form-data' && resolvedSchema?.type === 'object' && resolvedSchema?.properties) {
+      const formProps = Object.entries(resolvedSchema.properties)
+        .filter(([_, prop]) => {
+          const p = prop as SchemaObject;
+          return !['binary', 'base64'].includes(p.format || '') &&
+            !(p.type === 'array' && (p.items as SchemaObject)?.format === 'binary');
+        })
+        .map(([key, prop]) => ({
+          key,
+          type: getType(prop as SchemaObject),
+          required: schema.required?.includes(key) ?? false
+        }));
+
+      if (formProps.length > 0) {
+        const type = `{ ${formProps.map(p =>
+          `${p.key}${p.required ? '' : '?'}: ${p.type}`).join('; ')} }`;
+        return { mediaType, type, required: false };
+      }
+    }
+
     // 如果 requestBody 有 required 属性，则正常展示；如果没有，默认非必填
     const required = typeof requestBody.required === 'boolean' ? requestBody.required : false;
     if (schema.type === 'object' && schema.properties) {
@@ -804,40 +830,40 @@ class ServiceGenerator {
 
   public getFileTP(requestBody: any = {}) {
     const reqBody: RequestBodyObject = this.resolveRefObject(requestBody);
-    if (reqBody && reqBody.content && reqBody.content['multipart/form-data']) {
-      const ret = this.resolveFileTP(reqBody.content['multipart/form-data'].schema);
-      return ret.length > 0 ? ret : null;
+    if (!reqBody?.content?.['multipart/form-data']?.schema) {
+      return null;
     }
-    return null;
-  }
 
-  public resolveFileTP(obj: any) {
-    let ret = [];
-    const resolved = this.resolveObject(obj);
-    const props =
-      (resolved.props &&
-        resolved.props.length > 0 &&
-        resolved.props[0].filter(
-          (p) =>
-            p.format === 'binary' ||
-            p.format === 'base64' ||
-            ((p.type === 'string[]' || p.type === 'array') &&
-              (p.items.format === 'binary' || p.items.format === 'base64')),
-        )) ||
-      [];
-    if (props.length > 0) {
-      ret = props.map((p) => {
-        return { title: p.name, multiple: p.type === 'string[]' || p.type === 'array' };
+    const rawSchema = reqBody.content['multipart/form-data'].schema;
+    const schema = this.resolveRefObject(rawSchema) as SchemaObject;
+    const fileFields = [];
+
+    if (schema?.type === 'object' && schema?.properties) {
+      Object.entries(schema.properties).forEach(([key, prop]) => {
+        const property = prop as SchemaObject;
+        if (property.format === 'binary' || property.format === 'base64') {
+          fileFields.push({
+            title: key,
+            multiple: false,
+            required: schema.required?.includes(key) ?? false
+          });
+        } else if (property.type === 'array' && (property.items as SchemaObject)?.format === 'binary') {
+          fileFields.push({
+            title: key,
+            multiple: true,
+            required: schema.required?.includes(key) ?? false
+          });
+        }
       });
     }
-    if (resolved.type) ret = [...ret, ...this.resolveFileTP(resolved.type)];
-    return ret;
+
+    return fileFields.length > 0 ? fileFields : null;
   }
 
   public getResponseTP(responses: ResponsesObject = {}) {
     const { components } = this.openAPIData;
     const response: ResponseObject | undefined =
-      responses && this.resolveRefObject(responses.default || responses['200'] || responses['201']);
+      responses && this.resolveRefObject(responses.default || responses['200'] || responses['201'], '', true);
     const defaultResponse = {
       mediaType: '*/*',
       type: 'any',
@@ -853,9 +879,6 @@ class ServiceGenerator {
     let schema = (resContent[mediaType].schema || DEFAULT_SCHEMA) as SchemaObject;
 
     if (schema.$ref) {
-      // const refWithEncodedChars = schema.$ref.replace('%C2%AB', '<').replace('%C2%BB', '>');
-      // schema.$ref = refWithEncodedChars
-
       const refPaths = schema.$ref.split('/');
       const refName = refPaths[refPaths.length - 1];
       const childrenSchema = components.schemas[refName] as SchemaObject;
@@ -873,11 +896,12 @@ class ServiceGenerator {
       }
     }
 
+    // 递归处理响应模型，始终传true
     if ('properties' in schema) {
       Object.keys(schema.properties).map((fieldName) => {
-        // eslint-disable-next-line @typescript-eslint/dot-notation
         schema.properties[fieldName]['required'] = schema.required?.includes(fieldName) ?? false;
       });
+      this.resolveProperties(schema, '', true);
     }
 
     return {
@@ -950,7 +974,8 @@ class ServiceGenerator {
         }
 
         return Object.keys(defines).map((typeName) => {
-          const result = this.resolveObject(defines[typeName]);
+          // 普通模型始终传false
+          const result = this.resolveObject(defines[typeName], toPascalCase(resolveTypeName(typeName).replace(/«.+»/g, '<T>')), false);
 
           result?.props?.forEach((e) => {
             e.forEach((item) => {
@@ -1001,12 +1026,14 @@ class ServiceGenerator {
           // 主 schema 生成部分过滤
           if (shouldSkipSinglePathParamClass(props)) return null;
 
+
           return {
             typeName: toPascalCase(resolveTypeName(typeName).replace(/«.+»/g, '<T>')),
             type: getDefinesType(),
             parent: result.parent,
             props: result.props || [],
             isEnum: result?.isEnum,
+            description: (typeof defines[typeName] === 'object' && 'description' in defines[typeName]) ? (defines[typeName] as any).description || '' : '',
           };
         });
       });
@@ -1060,17 +1087,36 @@ class ServiceGenerator {
                   required: false,
                   type: `Array<${camelCaseResult}>`,
                   initialValue: '[]',
+                  description: '',
                 };
               }
             } else {
-              const pType = getType(parameter.schema, false);
+              let pType = getType(parameter.schema, false);
+              let isEnum = false;
+              let enumArr = undefined;
+              let enumTypeName = undefined;
+              let enumInitialValue = undefined;
+              if (Array.isArray(parameter.schema?.enum)) {
+                isEnum = true;
+                enumArr = parameter.schema.enum;
+                enumTypeName = `${parameter.name.charAt(0).toUpperCase()}${parameter.name.slice(1)}`;
+                enumInitialValue = enumArr[0].charAt(0).toUpperCase() + enumArr[0].slice(1);
+                pType = enumTypeName;
+              }
+              let initialValue = getInitialValue(pType, parameter.required, parameter.schema);
+              if (isEnum) {
+                initialValue = enumInitialValue;
+              }
 
               props.push({
                 desc: parameter.description ?? '',
                 name: parameter.name,
                 required: parameter.required,
-                type: pType,
-                initialValue: getInitialValue(pType, parameter.required, parameter.schema),
+                type: isEnum ? enumTypeName : pType,
+                initialValue,
+                isEnum,
+                enum: enumArr,
+                description: '',
               });
             }
           });
@@ -1087,6 +1133,7 @@ class ServiceGenerator {
               name: parameter.name,
               required: parameter.required,
               type: getType(parameter.schema, false),
+              description: '',
             });
           });
         }
@@ -1108,6 +1155,7 @@ class ServiceGenerator {
               parent: undefined,
               props: [props],
               isEnum: false,
+              description: '',
             },
           ]);
         }
@@ -1151,18 +1199,36 @@ class ServiceGenerator {
   }
 
   // 获取 TS 类型的属性列表
-  getProps(schemaObject: SchemaObject) {
-    const requiredPropKeys = schemaObject?.required ?? false;
+  getProps(schemaObject: SchemaObject, parentTypeName = '', isResponseModel = false) {
+    // 自动识别：如果schema.description包含@x-response，则视为响应模型
+    if (!isResponseModel && typeof schemaObject.description === 'string' && schemaObject.description.includes('@x-response')) {
+      isResponseModel = true;
+    }
     return schemaObject.properties
       ? Object.keys(schemaObject.properties).map((propName) => {
         const schema: SchemaObject =
           (schemaObject.properties && schemaObject.properties[propName]) || DEFAULT_SCHEMA;
 
-        const isEnum = 'enum' in schema;
-        const sType = getType(schema, false);
-        const required = requiredPropKeys
-          ? requiredPropKeys.some((key) => key === propName)
-          : false;
+        let isEnum = 'enum' in schema;
+        let sType = getType(schema, false);
+        let enumArr = undefined;
+        let enumTypeName = undefined;
+        let enumInitialValue = undefined;
+        if (Array.isArray(schema.enum) && this.config.enumStyle === 'enum') {
+          isEnum = true;
+          enumArr = schema.enum;
+          // 直接生成联合类型字符串
+          sType = enumArr.map(v => `'${v}'`).join(' | ');
+        }
+        // 字段级别x-required优先
+        let required;
+        if (isResponseModel) {
+          required = schema['x-nullable'] !== true;
+        } else if (schema['x-required'] === true) {
+          required = true;
+        } else {
+          required = Array.isArray(schemaObject.required) ? schemaObject.required.includes(propName) : false;
+        }
 
         // 拼接注释 comment 字段
         const descArr = [schema.title, schema.description].filter((s) => s);
@@ -1172,50 +1238,92 @@ class ServiceGenerator {
         if (Array.isArray(schema.enum)) descArr.push(`enum: ${schema.enum.map((v) => JSON.stringify(v)).join(', ')}`);
         const comment = descArr.length ? descArr.join('; ') : undefined;
 
+        // 清洗类型字符串，去除多余括号
+        let cleanTypeStr = sType.replace(/^\((.*)\)$/, '$1');
+
+        // 新增：必填字段有默认值，选填字段无默认值
+        let initialValue;
+        if (isEnum) {
+          initialValue = enumInitialValue;
+        } else if (cleanTypeStr.trim().endsWith('[]')) {
+          initialValue = '[]';
+        } else if (
+          !this.config.useInterface &&
+          /^[A-Z][A-Za-z0-9_\.]+$/.test(cleanTypeStr.replace(/[()\[\]\s]/g, '')) &&
+          !['string', 'number', 'boolean', 'Date', 'any', 'unknown', 'Record'].some(t => cleanTypeStr.startsWith(t))
+        ) {
+          // 去除括号、数组符号、Models.前缀
+          const cleanObjType = cleanTypeStr.replace(/^Models\./, '').replace(/[()\[\]\s]/g, '');
+          initialValue = `new ${cleanObjType}()`;
+        } else {
+          initialValue = getInitialValue(cleanTypeStr, required, schema);
+        }
+
         return {
           ...schema,
           name: propName,
-          type: sType,
+          type: cleanTypeStr,
           desc: [schema.title, schema.description].filter((s) => s).join(' '),
           comment,
-          // 如果没有 required 信息，默认全部是非必填
           required: required,
-          initialValue: !required && isEnum ? 'undefined' : (isEnum ? schema.type === 'string' ? JSON.stringify(schema.enum[0]) : schema.enum[0] : getInitialValue(sType, required, schema)),
-          // 新增 unionDefault 字段
-          unionDefault: /^".*"(\s*\|\s*".*")+$/.test(sType)
-            ? (sType.match(/"([^"]+)"/) ? sType.match(/"([^"]+)"/)[1] : undefined)
-            : undefined,
+          initialValue,
+          isEnum,
+          enum: enumArr,
         };
       })
       : [];
   }
 
-  resolveObject(schemaObject: SchemaObject) {
+  // 响应模型专用
+  getResponseProps(schemaObject: SchemaObject, parentTypeName = '') {
+    return this.getProps(schemaObject, parentTypeName, true);
+  }
+
+  resolveObject(schemaObject: SchemaObject, parentTypeName = '', isResponseModel = false) {
     // 引用类型
     if (schemaObject.$ref) {
-      return this.resolveRefObject(schemaObject);
+      return this.resolveRefObject(schemaObject, parentTypeName, isResponseModel);
     }
     // 枚举类型
     if (schemaObject.enum) {
-      return this.resolveEnumObject(schemaObject);
+      return this.resolveEnumObject(schemaObject, parentTypeName);
     }
     // 继承类型
     if (schemaObject.allOf && schemaObject.allOf.length) {
-      return this.resolveAllOfObject(schemaObject);
+      return this.resolveAllOfObject(schemaObject, parentTypeName, isResponseModel);
     }
     // 对象类型
     if (schemaObject.properties) {
-      return this.resolveProperties(schemaObject);
+      return this.resolveProperties(schemaObject, parentTypeName, isResponseModel);
     }
     // 数组类型
     if (schemaObject.items && schemaObject.type === 'array') {
-      return this.resolveArray(schemaObject);
+      return this.resolveArray(schemaObject, parentTypeName);
     }
     return schemaObject;
   }
 
-  resolveArray(schemaObject: SchemaObject) {
-    if (schemaObject.items.$ref) {
+  resolveProperties(schemaObject: SchemaObject, parentTypeName = '', isResponseModel = false) {
+    return {
+      props: [this.getProps(schemaObject, parentTypeName, isResponseModel)],
+    };
+  }
+
+  resolveAllOfObject(schemaObject: SchemaObject, parentTypeName = '', isResponseModel = false) {
+    const props = (schemaObject.allOf || []).map((item) =>
+      item.$ref ? [{ ...item, type: getType(item, false).split('/').pop() }] : this.getProps(item, parentTypeName, isResponseModel),
+    );
+
+    if (schemaObject.properties) {
+      const extProps = this.getProps(schemaObject, parentTypeName, isResponseModel);
+      return { props: [...props, extProps] };
+    }
+
+    return { props };
+  }
+
+  resolveArray(schemaObject: SchemaObject, parentTypeName = '') {
+    if (schemaObject.items && schemaObject.items.$ref) {
       const refObj = schemaObject.items.$ref.split('/');
       return {
         type: `${refObj[refObj.length - 1]}[]`,
@@ -1225,29 +1333,40 @@ class ServiceGenerator {
     return 'any[]';
   }
 
-  resolveProperties(schemaObject: SchemaObject) {
-    return {
-      props: [this.getProps(schemaObject)],
-    };
+  private resolveRefObject(refObject: any, parentTypeName = '', isResponseModel = false): any {
+    if (!refObject || !refObject.$ref) {
+      return refObject;
+    }
+    const refPaths = refObject.$ref.split('/');
+    if (refPaths[0] === '#') {
+      refPaths.shift();
+      let obj: any = this.openAPIData;
+      refPaths.forEach((node: any) => {
+        obj = obj[node];
+      });
+      if (!obj) {
+        throw new Error(`[GenSDK] Data Error! Notfoud: ${refObject.$ref}`);
+      }
+      return {
+        ...this.resolveRefObject(obj, parentTypeName, isResponseModel),
+        type: obj.$ref ? this.resolveRefObject(obj, parentTypeName, isResponseModel).type : obj,
+      };
+    }
+    return refObject;
   }
 
-  resolveEnumObject(schemaObject: SchemaObject) {
-
+  private resolveEnumObject(schemaObject: SchemaObject, parentTypeName = '') {
     if (schemaObject?.enum) {
       const enumObject = schemaObject.enum.reduce((pre, cur) => {
         pre[cur] ? pre : pre[cur] = cur;
         return pre;
       }, {});
-
-
       return {
         isEnum: true,
         type: JSON.stringify(enumObject).replace(/:/g, '='),
       };
     }
-
     const enumArray = schemaObject.enum;
-
     let enumStr;
     switch (this.config.enumStyle) {
       case 'enum':
@@ -1265,107 +1384,10 @@ class ServiceGenerator {
       default:
         break;
     }
-
     return {
       isEnum: this.config.enumStyle == 'enum',
       type: Array.isArray(enumArray) ? enumStr : 'string',
     };
-  }
-
-  resolveAllOfObject(schemaObject: SchemaObject) {
-    const props = (schemaObject.allOf || []).map((item) =>
-      item.$ref ? [{ ...item, type: getType(item, false).split('/').pop() }] : this.getProps(item),
-    );
-
-    if (schemaObject.properties) {
-      const extProps = this.getProps(schemaObject);
-      return { props: [...props, extProps] };
-    }
-
-    return { props };
-  }
-
-  // 将地址path路径转为大驼峰
-  private genDefaultFunctionName(path: string, pathBasePrefix: string) {
-    // 首字母转大写
-    function toUpperFirstLetter(text: string) {
-      return text.charAt(0).toUpperCase() + text.slice(1);
-    }
-
-    // const pathItems = path.split('/')
-
-    // const funName = toUpperFirstLetter(pathItems[pathItems.length - 1])
-
-    // return funName;
-
-    return path
-      ?.replace(pathBasePrefix, '')
-      .split('/')
-      .map((str) => {
-        /**
-         * 兼容错误命名如 /user/:id/:name
-         * 因为是typeName，所以直接进行转换
-         * */
-        let s = resolveTypeName(str);
-        if (s.includes('-')) {
-          s = s.replace(/(-\w)+/g, (_match: string, p1) => p1?.slice(1).toUpperCase());
-        }
-
-        if (s.match(/^{.+}$/gim)) {
-          return `By${toUpperFirstLetter(s.slice(1, s.length - 1))}`;
-        }
-        return toUpperFirstLetter(s);
-      })
-      .join('');
-  }
-  // 检测所有path重复区域（prefix）
-  private getBasePrefix(paths: string[]) {
-    const arr = [];
-    paths
-      .map((item) => item.split('/'))
-      .forEach((pathItem) => {
-        pathItem.forEach((item, key) => {
-          if (arr.length <= key) {
-            arr[key] = [];
-          }
-          arr[key].push(item);
-        });
-      });
-
-    const res = [];
-    arr
-      .map((item) => Array.from(new Set(item)))
-      .every((item) => {
-        const b = item.length === 1;
-        if (b) {
-          res.push(item);
-        }
-        return b;
-      });
-
-    return `${res.join('/')}/`;
-  }
-
-  private resolveRefObject(refObject: any): any {
-    if (!refObject || !refObject.$ref) {
-      return refObject;
-    }
-    const refPaths = refObject.$ref.split('/');
-    if (refPaths[0] === '#') {
-      refPaths.shift();
-      let obj: any = this.openAPIData;
-      refPaths.forEach((node: any) => {
-        obj = obj[node];
-      });
-      if (!obj) {
-        throw new Error(`[GenSDK] Data Error! Notfoud: ${refObject.$ref}`);
-      }
-      return {
-        ...this.resolveRefObject(obj),
-        type: obj.$ref ? this.resolveRefObject(obj).type : obj,
-      };
-    }
-    return refObject;
   }
 
   private getFinalFileName(s: string): string {
