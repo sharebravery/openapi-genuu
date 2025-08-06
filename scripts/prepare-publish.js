@@ -1,29 +1,35 @@
 const fs = require('fs');
 const path = require('path');
 
-// 确保 dist/templates 目录存在
-const templatesDist = path.join(__dirname, '../dist/templates');
-if (!fs.existsSync(templatesDist)) {
-  fs.mkdirSync(templatesDist, { recursive: true });
+function copyDir(src, dest) {
+    // 确保目标目录存在
+    if (!fs.existsSync(dest)) {
+        fs.mkdirSync(dest, { recursive: true });
+    }
+
+    // 读取源目录中的所有文件和文件夹
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+
+        if (entry.isDirectory()) {
+            // 如果是目录，递归复制
+            copyDir(srcPath, destPath);
+        } else {
+            // 如果是文件，直接复制并保持内容不变
+            const content = fs.readFileSync(srcPath, 'utf-8');
+            fs.writeFileSync(destPath, content, 'utf-8');
+        }
+    }
 }
 
-// 复制模板文件到 dist 目录
+// 源模板目录和目标目录
 const templatesDir = path.join(__dirname, '../templates');
-fs.readdirSync(templatesDir).forEach(file => {
-  const content = fs.readFileSync(path.join(templatesDir, file), 'utf-8');
-  // 确保模板内容不被转义
-  fs.writeFileSync(
-    path.join(templatesDist, file),
-    content,
-    'utf-8'
-  );
-});
+const templatesDist = path.join(__dirname, '../dist/templates');
 
-// 修改 package.json 中的路径
-const packageJson = require('../package.json');
-packageJson.files = ['dist'];
-fs.writeFileSync(
-  path.join(__dirname, '../package.json'),
-  JSON.stringify(packageJson, null, 2),
-  'utf-8'
-);
+// 复制模板目录到 dist 目录，保持内容不变
+copyDir(templatesDir, templatesDist);
+
+console.log('✅ 模板文件已成功复制到 dist/templates');

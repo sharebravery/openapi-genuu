@@ -17,6 +17,7 @@
     "lib",
     "es",
     "dist",
+    "templates",
     "**/__tests__",
     "**/__test__",
     "**/demo",

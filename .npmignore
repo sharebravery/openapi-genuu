@@ -1,9 +1,18 @@
-# 源代码
+# 默认排除所有文件
+*
+
+# 包含这些目录和文件
+!dist/**/*
+!templates/**/*
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+
+# 排除源代码和配置文件
 src/
 test/
+scripts/
 tsconfig.json
 .prettierrc
 .eslintrc.js
-
-# 保留模板文件，确保它们不被转换
-!templates/
