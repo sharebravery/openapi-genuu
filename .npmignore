@@ -1,0 +1,9 @@
+# 源代码
+src/
+test/
+tsconfig.json
+.prettierrc
+.eslintrc.js
+
+# 保留模板文件，确保它们不被转换
+!templates/
